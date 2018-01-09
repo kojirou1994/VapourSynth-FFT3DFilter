@@ -20,7 +20,6 @@
 
 #include <string>
 
-#include "config.h"
 #include "VapourSynth.h"
 #include "FFT3DFilter.h"
 
@@ -245,7 +244,7 @@ VS_EXTERNAL_API( void ) VapourSynthPluginInit
     config_func
     (
         "systems.innocent.fft3dfilter", "fft3dfilter",
-        "FFT3DFilter rev" VSFFT3DFILTER_REV "-" VSFFT3DFILTER_GIT_HASH,
+        "FFT3DFilter",
         VAPOURSYNTH_API_VERSION, 1, plugin
     );
     register_func
