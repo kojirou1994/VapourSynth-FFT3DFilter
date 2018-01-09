@@ -161,7 +161,7 @@ static void VS_CC createFFT3DFilter
     set_option_int64( &oh,       bh/3, "oh",         in, vsapi );
     set_option_float( &kratio,    2.0, "kratio",     in, vsapi );
     set_option_float( &sharpen,     0, "sharpen",    in, vsapi );
-    set_option_float( &scutoff,   0.3, "scutoff",    in, vsapi );
+    set_option_float( &scutoff,  0.3f, "scutoff",    in, vsapi );
     set_option_float( &svr,       1.0, "svr",        in, vsapi );
     set_option_float( &smin,      4.0, "smin",       in, vsapi );
     set_option_float( &smax,     20.0, "smax",       in, vsapi );
@@ -172,7 +172,7 @@ static void VS_CC createFFT3DFilter
     set_option_int64( &px,          0, "px",         in, vsapi );
     set_option_int64( &py,          0, "py",         in, vsapi );
     set_option_int64( &pshow,       0, "pshow",      in, vsapi );
-    set_option_float( &pcutoff,   0.1, "pcutoff",    in, vsapi );
+    set_option_float( &pcutoff,  0.1f, "pcutoff",    in, vsapi );
     set_option_float( &pfactor,     0, "pfactor",    in, vsapi );
     set_option_float( &sigma2, sigma1, "sigma2",     in, vsapi );
     set_option_float( &sigma3, sigma1, "sigma3",     in, vsapi );
