@@ -21,64 +21,12 @@
  *****************************************************************************
  *
  * Plugin uses external FFTW library version 3 (http://www.fftw.org)
- * You must put libfftw3f-3.dll file from this package to some directory in path
- * (for example, C:\WINNT\System32).
+ * You must put libfftw3f-3.dll in the same directory as the plugin dll
  *
  * The algorithm is based on the 3D IIR/3D Frequency Domain Filter from:
  * MOTION PICTURE RESTORATION. by Anil Christopher Kokaram. Ph.D. Thesis. May 1993.
  * http://www.mee.tcd.ie/~ack/papers/a4ackphd.ps.gz
  *
- * For AviSynth 2.5
- *    Version 0.1, 23 November 2004 - initial
- *    Version 0.2, 3 December 2004 - add beta parameter of noise margin
- *    Version 0.3, 21 December 2004 - add bt parameter of temporal size
- *    Version 0.4, 16 January 2005 - algorithm optimized for speed for bt=2 (now default),
- *        mode bt=3 is temporary disabled, changed default bw=bh=32, filtered region now centered.
- *    Version 0.5, 28 January 2005 - added YUY2 support
- *    Version 0.6, 29 January 2005 - added Kalman filter mode for bt=0, ratio parameter
- *    Version 0.7, 30 January 2005 - re-enabled Wiener filter mode with 3 frames (bt=3)
- *    Version 0.8, 05 February2005 - added option to sharpen, and bt=-1
- *    Version 0.8.1, 6 February2005 - skip sharpening of the lowest frequencies to prevent parasitic lines near border
- *    Version 0.8.2,  February 15, 2005 - added internal buffer to process whole frame (borders included) for any bw, bh (a little slower)
- *    Version 0.8.3, March 16, 2005 - fixed sharpen mode (bt=-1) for YUY2
- *    Version 0.8.4, April 3, 2005 - delayed FFTW3.DLL loading
- *    Version 0.9 - April 3,2005 - variable overlapping size
- *    Version 0.9.1 - April 7,2005 - some assembler 3DNow! optimization for mode bt=3
- *    Version 0.9.2 - April 10,2005 - some assembler 3DNow! optimization for mode bt=2,
- *        option measure=true is now default as more fast
- *    Version 0.9.3 - April 24,2005 - bug fixed for bt=2 with 3DNow; * bt=3 now default;
- *        modifyed sharpen to horizontal only (still experimental)
- *    Version 1.0 - June 22, 2005 - improved edges processing (by padding);
- *        added svr parameter to control vertical sharpening
- *    Version 1.0.1 - July 05, 2005 - fixed bug for YUY2 chroma planes
- *    Version 1.1 - July 8,2005 - improved sharpen mode to prevent grid artifactes and to limit sharpening,
- *        added parameters smin, smax; renamed parameter ratio to kratio.
- *    Version 1.2 - July 12, 2005 - changed parameters defaults (bw=bh=48, ow=bw/3, oh=bh/3) to prevent grid artifactes
- *    Version 1.3 - July 20, 2005 - added interlaced mode
- *    Version 1.3.1 - July 21, 2005 - fixed bug for YUY2 interlaced
- *    Version 1.4 - July 23, 2005 - corrected neutral level for chroma processing, added wintype to decrease grid artefactes
- *    Version 1.5 - July 26, 2005 - added noise pattern method and its parameters pframe, px, py, pshow, pcutoff, pfactor
- *    Version 1.5.1 - July 29, 2005 - fixed bug with pshow
- *    Version 1.5.2 - July 31, 2005 - fixed bug with Kalman mode (bt=0) for Athlon (introduced in v1.5)
- *    Version 1.6 - August 01, 2005 - added mode bt=4; optimized SSE version for bt=2,3
- *    Version 1.7 - August 29, 2005 - added SSE version for for sharpen and pattern modes bt=2,3 ; restuctured code, GPL v2
- *    Version 1.8 - September 6, 2005 - improved internal fft cache; added degrid=0; changed wintype=0
- *    Version 1.8.1 - October 26, 2005 - fixed bug with sharpen>0 AND degrid>0 for bt not equal 1.
- *    Version 1.8.2 - November 04, 2005 - really set default degrid=1.0 (was = 0)
- *    Version 1.8.3 - November 28, 2005 - fixed bug with first frame for Kalman YV12 (thanks to Tsp)
- *    Version 1.8.4 - November 29, 2005 - added multiplane modes plane=3,4
- *    Version 1.8.5 - 4 December 2005 - fixed bug with memory leakage (thanks to tsp).
- *    Version 1.9 - April 25, 2006 - added dehalo options; corrected sharpen mode a little;
- *        re-enabled 3DNow and SSE optimization for degrid=0;  added SSE optimization for bt=3,-1 with degrid>0 (faster by 15%)
- *    Version 1.9.1 - May 10, 2006 - added SSE optimization for bt=4 with degrid>0 (faster by 30%)
- *    Version 1.9.2 - September 6, 2006 - added new mode bt=5
- *    Version 2.0.0 - november 6, 2006 - added motion compensation mc parameter, window reorganized, multi-cpu
- *    Version 2.1.0 - January 17, 2007 - removed motion compensation mc parameter
- *    Version 2.1.1 - February 19, 2007 - fixed bug with bw not mod 4 (restored v1.9.2 window method)
- *
- * For VapourSynth
- *    February 2, 2015 - imported for VapourSynth without SIMD optimizations.
- *    February 4, 2015 - stopped using explicit linking to FFTW3 library.
  *****************************************************************************/
 
 #include <cstring>
