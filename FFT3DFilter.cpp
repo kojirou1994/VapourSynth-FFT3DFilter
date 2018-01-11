@@ -173,36 +173,6 @@ static void SigmasToPattern( float sigma, float sigma2, float sigma3, float sigm
     }
 }
 
-
-//-------------------------------------------------------------------------------------------
-static void BitBlt
-(
-    void       *dstp,
-    int         dst_stride,
-    const void *srcp,
-    int         src_stride,
-    int         row_size,
-    int         height
-)
-{
-    if( height <= 0 )
-        return;
-    if( src_stride == dst_stride
-     && src_stride == row_size )
-        std::memcpy( dstp, srcp, row_size * height );
-    else
-    {
-        unsigned char *srcp8 = static_cast<unsigned char *>(const_cast<void *>(srcp));
-        unsigned char *dstp8 = static_cast<unsigned char *>                   (dstp);
-        for( int i = 0; i < height; ++i )
-        {
-            std::memcpy( dstp8, srcp8, row_size );
-            srcp8 += src_stride;
-            dstp8 += dst_stride;
-        }
-    }
-}
-
 //-------------------------------------------------------------------
 FFT3DFilter::FFT3DFilter
 (
@@ -231,18 +201,11 @@ FFT3DFilter::FFT3DFilter
 
     if( bt < -1 || bt > 5 ) throw bad_param{ "bt must be -1(Sharpen), 0(Kalman), 1,2,3,4,5(Wiener)" };
 
-    if( vi.format->colorFamily != cmGray && vi.format->colorFamily != cmYUV )
-        throw bad_param{ "only planar YUV formats are supported" };
     if( vi.format->bitsPerSample != 8 )
         throw bad_param{ "only 8-bit formats are supported" };
 
-    if( plane < 3 )
-    {
-        nox = ((vi.width  >> (plane ? vi.format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
-        noy = ((vi.height >> (plane ? vi.format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
-    }
-    else
-        throw bad_param{ "internal plane must be 0, 1 or 2" };
+    nox = ((vi.width  >> (plane ? vi.format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
+    noy = ((vi.height >> (plane ? vi.format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
     /* padding by 1 block per side */
     nox += 2;
@@ -587,7 +550,7 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     {
         for( h = mirh; h < src_height + mirh; h++ )
         {
-            BitBlt( coverbuf1 + mirw, coverpitch, srcp, src_pitch, src_width, 1 ); /* copy line */
+            memcpy( coverbuf1 + mirw, srcp, src_width); /* copy line */
             for( w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
@@ -604,7 +567,7 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     {
         for( h = mirh; h < src_height / 2 + mirh; h++ ) /* first field */
         {
-            BitBlt( coverbuf1 + mirw, coverpitch, srcp, src_pitch, src_width, 1 ); /* copy line */
+            memcpy( coverbuf1 + mirw, srcp, src_width ); /* copy line */
             for( w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
@@ -620,7 +583,7 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
         srcp -= src_pitch;
         for( h = src_height / 2 + mirh; h < src_height + mirh; h++ ) /* flip second field */
         {
-            BitBlt( coverbuf1 + mirw, coverpitch, srcp, src_pitch, src_width, 1 ); /* copy line */
+            memcpy( coverbuf1 + mirw, srcp, src_width ); /* copy line */
             for( w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
@@ -637,7 +600,7 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     uint8_t *pmirror = coverbuf1 - coverpitch * 2; /* pointer to vertical mirror */
     for( h = src_height + mirh; h < coverheight; h++ )
     {
-        BitBlt( coverbuf1, coverpitch, pmirror, coverpitch, coverwidth, 1 ); /* mirror bottom line by line */
+        memcpy( coverbuf1, pmirror, coverwidth ); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
         pmirror   -= coverpitch;
     }
@@ -645,7 +608,7 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     pmirror   = coverbuf1 + coverpitch * mirh * 2; /* pointer to vertical mirror */
     for( h = 0; h < mirh; h++ )
     {
-        BitBlt( coverbuf1, coverpitch, pmirror, coverpitch, coverwidth, 1 ); /* mirror bottom line by line */
+        memcpy( coverbuf1, pmirror, coverwidth ); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
         pmirror   -= coverpitch;
     }
@@ -660,7 +623,7 @@ static void CoverbufToPlanarPlane( const uint8_t *coverbuf, int coverwidth, int 
     {
         for( h = 0; h < dst_height; h++ )
         {
-            BitBlt( dstp, dst_pitch, coverbuf1, coverpitch, dst_width, 1 ); /* copy pure frame size only */
+            memcpy( dstp, coverbuf1, dst_width ); /* copy pure frame size only */
             dstp      += dst_pitch;
             coverbuf1 += coverpitch;
         }
@@ -669,7 +632,7 @@ static void CoverbufToPlanarPlane( const uint8_t *coverbuf, int coverwidth, int 
     {
         for( h = 0; h < dst_height; h += 2 )
         {
-            BitBlt( dstp, dst_pitch, coverbuf1, coverpitch, dst_width, 1 ); /* copy pure frame size only */
+            memcpy( dstp, coverbuf1, dst_width ); /* copy pure frame size only */
             dstp      += dst_pitch * 2;
             coverbuf1 += coverpitch;
         }
@@ -677,7 +640,7 @@ static void CoverbufToPlanarPlane( const uint8_t *coverbuf, int coverwidth, int 
         dstp -= dst_pitch;
         for( h = 0; h < dst_height; h += 2 )
         {
-            BitBlt( dstp, dst_pitch, coverbuf1, coverpitch, dst_width, 1 ); /* copy pure frame size only */
+            memcpy( dstp, coverbuf1, dst_width ); /* copy pure frame size only */
             dstp      -= dst_pitch * 2;
             coverbuf1 += coverpitch;
         }
@@ -1268,18 +1231,10 @@ static void Pattern2Dto3D( const float *pattern2d, int bh, int outwidth, int out
 //-------------------------------------------------------------------------------------------
 static void Copyfft( fftwf_complex *outrez, const fftwf_complex *outprev, int outsize )
 { /* save outprev to outrez to prevent cache change (inverse fft2d will destroy the array) */
-#if 0
-    for( int i = 0; i < outsize; i++ )
-    {
-        outrez[i][0] = outprev[i][0];
-        outrez[i][1] = outprev[i][1];
-    }
-#else
-    /* more fast */
-    BitBlt( (uint8_t *)&outrez [0][0], outsize * 8,
-            (uint8_t *)&outprev[0][0], outsize * 8,
-            outsize * 8, 1 );
-#endif
+
+    memcpy( (uint8_t *)&outrez [0][0],
+            (uint8_t *)&outprev[0][0],
+            outsize * 8 );
 }
 //-------------------------------------------------------------------------------------------
 static void SortCache( int *cachewhat, fftwf_complex **cachefft, int cachesize, int cachestart, int cachestartold )
@@ -1321,29 +1276,6 @@ static void SortCache( int *cachewhat, fftwf_complex **cachefft, int cachesize, 
             }
         }
     }
-}
-//-------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------
-static void CopyFrame
-(
-    const VSFrameRef *src,
-    VSFrameRef       *dst,
-    VSVideoInfo      &vi,
-    int               planeskip,
-    const VSAPI      *vsapi
-)
-{
-    for( int plane = 0; plane < vi.format->numPlanes; plane++ )
-        if( plane != planeskip )
-        {
-            const uint8_t *srcp       = vsapi->getReadPtr    ( src, plane );
-            int            src_pitch  = vsapi->getStride     ( src, plane );
-                  uint8_t *dstp       = vsapi->getWritePtr   ( dst, plane );
-            int            dst_height = vsapi->getFrameHeight( dst, plane );
-            int            dst_width  = vsapi->getFrameWidth ( dst, plane );
-            int            dst_pitch  = vsapi->getStride     ( dst, plane );
-            BitBlt( dstp, dst_pitch, srcp, src_pitch, dst_width, dst_height ); /* copy one plane */
-        }
 }
 //-------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------
@@ -1598,9 +1530,9 @@ void FFT3DFilter::ApplyFilter
             ApplyKalman( outrez, outLast, covar, covarProcess, outwidth, outpitch, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio );
 
         /* copy outLast to outrez */
-        BitBlt( (uint8_t *)&outrez [0][0], outsize * sizeof(fftwf_complex),
-                (uint8_t *)&outLast[0][0], outsize * sizeof(fftwf_complex),
-                outsize * sizeof(fftwf_complex), 1 );  /* v.0.9.2 */
+        memcpy( (uint8_t *)&outrez [0][0],
+                (uint8_t *)&outLast[0][0],
+                outsize * sizeof(fftwf_complex) );  /* v.0.9.2 */
         if( degrid != 0 )
             Sharpen_degrid( outrez, outwidth, outpitch, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen, degrid, gridsample, dehalo, wdehalo, ht2n );
         else
