@@ -204,6 +204,8 @@ FFT3DFilter::FFT3DFilter
     if( vi.format->bitsPerSample != 8 )
         throw bad_param{ "only 8-bit formats are supported" };
 
+    planeBase = plane ? (1 << (vi.format->bitsPerSample - 1)) : 0;
+
     nox = ((vi.width  >> (plane ? vi.format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((vi.height >> (plane ? vi.format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
@@ -222,7 +224,7 @@ FFT3DFilter::FFT3DFilter
 
     coverwidth  = nox * ( bw - ow ) + ow;
     coverheight = noy * ( bh - oh ) + oh;
-    coverpitch  = ((coverwidth + 7) / 8 ) * 8;
+    coverpitch  = ((coverwidth + 7) / 8 ) * 8 * vi.format->bytesPerSample;
     coverbuf    = (uint8_t *)malloc( coverheight * coverpitch );
 
     int insize = bw * bh * nox * noy;
@@ -540,21 +542,22 @@ FFT3DFilter::~FFT3DFilter()
 }
 //-----------------------------------------------------------------------
 //
-static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_height, int src_pitch, uint8_t *coverbuf, int coverwidth, int coverheight, int coverpitch, int mirw, int mirh, bool interlaced )
+template<typename T>
+static void PlanarPlaneToCovebuf( const T * __restrict srcp, int src_width, int src_height, int src_pitch, T * __restrict coverbuf, int coverwidth, int coverheight, int coverpitch, int mirw, int mirh, bool interlaced )
 {
     int h, w;
     int width2 = src_width + src_width + mirw + mirw - 2;
-    uint8_t *coverbuf1 = coverbuf + coverpitch * mirh;
+    T * __restrict coverbuf1 = coverbuf + coverpitch * mirh;
 
     if( !interlaced ) /* progressive */
     {
         for( h = mirh; h < src_height + mirh; h++ )
         {
-            memcpy( coverbuf1 + mirw, srcp, src_width); /* copy line */
             for( w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
+            memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
             for( w = src_width + mirw; w < coverwidth; w++ )
             {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
@@ -567,11 +570,11 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     {
         for( h = mirh; h < src_height / 2 + mirh; h++ ) /* first field */
         {
-            memcpy( coverbuf1 + mirw, srcp, src_width ); /* copy line */
             for( w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
+            memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
             for( w = src_width + mirw; w < coverwidth; w++ )
             {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
@@ -583,11 +586,11 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
         srcp -= src_pitch;
         for( h = src_height / 2 + mirh; h < src_height + mirh; h++ ) /* flip second field */
         {
-            memcpy( coverbuf1 + mirw, srcp, src_width ); /* copy line */
             for( w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
+            memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
             for( w = src_width + mirw; w < coverwidth; w++ )
             {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
@@ -600,7 +603,7 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     uint8_t *pmirror = coverbuf1 - coverpitch * 2; /* pointer to vertical mirror */
     for( h = src_height + mirh; h < coverheight; h++ )
     {
-        memcpy( coverbuf1, pmirror, coverwidth ); /* mirror bottom line by line */
+        memcpy( coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
         pmirror   -= coverpitch;
     }
@@ -608,41 +611,41 @@ static void PlanarPlaneToCovebuf( const uint8_t *srcp, int src_width, int src_he
     pmirror   = coverbuf1 + coverpitch * mirh * 2; /* pointer to vertical mirror */
     for( h = 0; h < mirh; h++ )
     {
-        memcpy( coverbuf1, pmirror, coverwidth ); /* mirror bottom line by line */
+        memcpy( coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
         pmirror   -= coverpitch;
     }
 }
 //-----------------------------------------------------------------------
 //
-static void CoverbufToPlanarPlane( const uint8_t *coverbuf, int coverwidth, int coverheight, int coverpitch, uint8_t *dstp, int dst_width, int dst_height, int dst_pitch, int mirw, int mirh, bool interlaced )
+template<typename T>
+static void CoverbufToPlanarPlane( const T * __restrict coverbuf, int coverwidth, int coverheight, int coverpitch, T * __restrict dstp, int dst_width, int dst_height, int dst_pitch, int mirw, int mirh, bool interlaced )
 {
-    int h;
-    const uint8_t *coverbuf1 = coverbuf + coverpitch * mirh + mirw;
+    const T * __restrict coverbuf1 = coverbuf + coverpitch * mirh + mirw;
     if( !interlaced ) /* progressive */
     {
-        for( h = 0; h < dst_height; h++ )
+        for( int h = 0; h < dst_height; h++ )
         {
             memcpy( dstp, coverbuf1, dst_width ); /* copy pure frame size only */
-            dstp      += dst_pitch;
-            coverbuf1 += coverpitch;
+            dstp      += dst_pitch / sizeof(T);
+            coverbuf1 += coverpitch / sizeof(T);
         }
     }
     else /* interlaced */
     {
-        for( h = 0; h < dst_height; h += 2 )
+        for( int h = 0; h < dst_height; h += 2 )
         {
             memcpy( dstp, coverbuf1, dst_width ); /* copy pure frame size only */
-            dstp      += dst_pitch * 2;
-            coverbuf1 += coverpitch;
+            dstp      += (dst_pitch * 2) / sizeof(T);
+            coverbuf1 += coverpitch / sizeof(T);
         }
         /* second field is flipped */
         dstp -= dst_pitch;
-        for( h = 0; h < dst_height; h += 2 )
+        for( int h = 0; h < dst_height; h += 2 )
         {
             memcpy( dstp, coverbuf1, dst_width ); /* copy pure frame size only */
-            dstp      -= dst_pitch * 2;
-            coverbuf1 += coverpitch;
+            dstp      -= (dst_pitch * 2) / sizeof(T);
+            coverbuf1 += coverpitch / sizeof(T);
         }
     }
 }
@@ -693,16 +696,17 @@ static void CoverbufToFramePlane
 //-----------------------------------------------------------------------
 /* put source bytes to float array of overlapped blocks
  * use analysis windows */
-void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_pitch, int planeBase )
+template<typename T>
+void FFT3DFilter::InitOverlapPlane( float *inp0, const T *srcp0, int src_pitch, int planeBase )
 {
     int w, h;
     int ihx, ihy;
-    const uint8_t *srcp = srcp0;// + (hrest/2)*src_pitch + wrest/2; /* centered */
+    const T * __restrict srcp = srcp0;
     float ftmp;
     int xoffset = bh * bw - (bw - ow); /* skip frames */
     int yoffset = bw * nox * bh - bw * (bh - oh); /* vertical offset of same block (overlap) */
 
-    float *inp = inp0;
+    float * __restrict inp = inp0;
 
     ihy = 0; /* first top (big non-overlapped) part */
     {
@@ -743,7 +747,7 @@ void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_p
             }
             inp  += ow;
             srcp += ow;
-            srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            srcp += (src_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
         for( h = oh; h < bh - oh; h++ )
         {
@@ -783,7 +787,7 @@ void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_p
             inp  += ow;
             srcp += ow;
 
-            srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            srcp += (src_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
     }
 
@@ -837,7 +841,7 @@ void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_p
             inp  += ow;
             srcp += ow;
 
-            srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            srcp += (src_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
         /* middle  vertical nonovelapped part */
         for( h = 0; h < bh - oh - oh; h++ )
@@ -882,7 +886,7 @@ void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_p
             inp  += ow;
             srcp += ow;
 
-            srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            srcp += (src_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
 
     }
@@ -930,7 +934,7 @@ void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_p
             inp  += ow;
             srcp += ow;
 
-            srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            srcp += (src_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
 
     }
@@ -939,14 +943,17 @@ void FFT3DFilter::InitOverlapPlane( float *inp0, const uint8_t *srcp0, int src_p
 //-----------------------------------------------------------------------------------------
 /* make destination frame plane from overlaped blocks
  * use synthesis windows wsynxl, wsynxr, wsynyl, wsynyr */
-void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *dstp0, int dst_pitch, int planeBase )
+template<typename T>
+void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, T *dstp0, int dst_pitch, int planeBase )
 {
     int w, h;
     int ihx, ihy;
-    uint8_t *dstp = dstp0;// + (hrest/2)*dst_pitch + wrest/2; /* centered */
-    const float *inp = inp0;
+    T * __restrict dstp = dstp0;
+    const float * __restrict inp = inp0;
     int xoffset = bh * bw - (bw - ow);
     int yoffset = bw * nox * bh - bw * (bh - oh); /* vertical offset of same block (overlap) */
+
+    const int maxval = std::numeric_limits<T>::max();
 
     ihy = 0; /* first top big non-overlapped) part */
     {
@@ -955,7 +962,7 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             inp = inp0 + h * bw;
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)(inp[w] * norm) + planeBase ) ); /* Copy each byte from float array to dest with windows */
+                dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) ); /* Copy each byte from float array to dest with windows */
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -963,25 +970,25 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             {
                 for( w = 0; w < ow; w++ )   /* half line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* first half line of first block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)(inp[w] * norm) + planeBase ) );   /* Copy each byte from float array to dest with windows */
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );   /* Copy each byte from float array to dest with windows */
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min( 255, std::max( 0,(int)(inp[w] * norm) + planeBase ) );
+                dstp[w] = std::min(maxval, std::max( 0,(int)(inp[w] * norm) + planeBase ) );
             }
             inp  += ow;
             dstp += ow;
 
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the dest image. */
+            dstp += (dst_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the dest image. */
         }
     }
 
@@ -996,7 +1003,7 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
 
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );   /* y overlapped */
+                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );   /* y overlapped */
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -1004,26 +1011,26 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             {
                 for( w = 0; w < ow; w++ )   /* half overlapped line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
                             + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh)) + planeBase ) );   /* x overlapped */
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* double minus - half non-overlapped line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh )) + planeBase ) );
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh )) + planeBase ) );
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );
+                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );
             }
             inp  += ow;
             dstp += ow;
 
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            dstp += (dst_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
         /* middle  vertical non-ovelapped part */
         for( h = 0; h < (bh - oh - oh); h++ )
@@ -1031,7 +1038,7 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh) * bw + h * bw + yoffset;
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -1039,25 +1046,25 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             {
                 for( w = 0; w < ow; w++ )   /* half overlapped line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w] ) * norm) + planeBase ) );   /* x overlapped */
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w] ) * norm) + planeBase ) );   /* x overlapped */
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
             }
             inp  += ow;
             dstp += ow;
 
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            dstp += (dst_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
     }
 
@@ -1068,7 +1075,7 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -1076,25 +1083,25 @@ void FFT3DFilter::DecodeOverlapPlane( const float *inp0, float norm, uint8_t *ds
             {
                 for( w = 0; w < ow; w++ )   /* half line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* half line of block */
                 {
-                    dstp[w] = std::min( 255, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min( 255, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
             }
             inp  += ow;
             dstp += ow;
 
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+            dstp += (dst_pitch / sizeof(T) - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
     }
 }
@@ -1367,13 +1374,6 @@ void FFT3DFilter::ApplyFilter
     const VSAPI      *vsapi
 )
 {
-    //_asm emms;
-
-    if( plane == 0 )
-        planeBase = 0;
-    else
-        planeBase = 128; /* neutral chroma value */
-
     if( pfactor != 0 && isPatternSet == false && pshow == false ) /* get noise pattern */
     {
         const VSFrameRef *psrc = vsapi->getFrameFilter( pframe, node, frame_ctx ); /* get noise pattern frame */

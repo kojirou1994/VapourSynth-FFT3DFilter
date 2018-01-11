@@ -137,8 +137,10 @@ private:
     int            * cachewhat; /* v1.8 */
     int              cachesize; /* v1.8 */
 
-    void InitOverlapPlane( float * inp, const uint8_t *srcp, int src_pitch, int planeBase );
-    void DecodeOverlapPlane( const float *in, float norm, uint8_t *dstp, int dst_pitch, int planeBase );
+    template<typename T>
+    void InitOverlapPlane(float *inp0, const T *srcp0, int src_pitch, int planeBase);
+    template<typename T>
+    void DecodeOverlapPlane( const float *in, float norm, T *dstp, int dst_pitch, int planeBase );
 
     template < int btcur > void Wiener3D( int n, const VSFrameRef *src, VSFrameContext *frame_ctx, const VSAPI *vsapi );
 
