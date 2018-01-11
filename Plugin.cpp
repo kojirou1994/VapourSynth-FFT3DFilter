@@ -20,8 +20,28 @@
 
 #include <string>
 
-#include "VapourSynth.h"
+#include <VapourSynth.h>
+#include <VSHelper.h>
 #include "FFT3DFilter.h"
+
+static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsapi) {
+    int m = vsapi->propNumElements(in, "planes");
+
+    for (int i = 0; i < 3; i++)
+        process[i] = (m <= 0);
+
+    for (int i = 0; i < m; i++) {
+        int o = int64ToIntS(vsapi->propGetInt(in, "planes", i, nullptr));
+
+        if (o < 0 || o >= 3)
+            throw std::string("plane index out of range");
+
+        if (process[o])
+            throw std::string("plane specified twice");
+
+        process[o] = true;
+    }
+}
 
 static inline void set_option_int64
 (
@@ -121,7 +141,7 @@ static void VS_CC createFFT3DFilter
 {
     float sigma1;
     float beta;
-    int64_t plane;
+    bool process[3];
     int64_t bw;
     int64_t bh;
     int64_t bt;
@@ -150,50 +170,59 @@ static void VS_CC createFFT3DFilter
     float   hr;
     float   ht;
     int64_t ncpu;
-    set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
-    set_option_float( &beta,      1.0, "beta",       in, vsapi );
-    set_option_int64( &plane,       0, "plane",      in, vsapi );
-    const int64_t b = plane < 3 ? 48 : 32;
-    set_option_int64( &bw,          b, "bw",         in, vsapi );
-    set_option_int64( &bh,          b, "bh",         in, vsapi );
-    set_option_int64( &bt,          3, "bt",         in, vsapi );
-    set_option_int64( &ow,       bw/3, "ow",         in, vsapi );
-    set_option_int64( &oh,       bh/3, "oh",         in, vsapi );
-    set_option_float( &kratio,    2.0, "kratio",     in, vsapi );
-    set_option_float( &sharpen,     0, "sharpen",    in, vsapi );
-    set_option_float( &scutoff,  0.3f, "scutoff",    in, vsapi );
-    set_option_float( &svr,       1.0, "svr",        in, vsapi );
-    set_option_float( &smin,      4.0, "smin",       in, vsapi );
-    set_option_float( &smax,     20.0, "smax",       in, vsapi );
-    set_option_int64( &measure,     1, "measure",    in, vsapi );
-    set_option_int64( &interlaced,  0, "interlaced", in, vsapi );
-    set_option_int64( &wintype,     0, "wintype",    in, vsapi );
-    set_option_int64( &pframe,      0, "pframe",     in, vsapi );
-    set_option_int64( &px,          0, "px",         in, vsapi );
-    set_option_int64( &py,          0, "py",         in, vsapi );
-    set_option_int64( &pshow,       0, "pshow",      in, vsapi );
-    set_option_float( &pcutoff,  0.1f, "pcutoff",    in, vsapi );
-    set_option_float( &pfactor,     0, "pfactor",    in, vsapi );
-    set_option_float( &sigma2, sigma1, "sigma2",     in, vsapi );
-    set_option_float( &sigma3, sigma1, "sigma3",     in, vsapi );
-    set_option_float( &sigma4, sigma1, "sigma4",     in, vsapi );
-    set_option_float( &degrid,    1.0, "degrid",     in, vsapi );
-    set_option_float( &dehalo,      0, "dehalo",     in, vsapi );
-    set_option_float( &hr,        2.0, "hr",         in, vsapi );
-    set_option_float( &ht,       50.0, "ht",         in, vsapi );
-    set_option_int64( &ncpu,        1, "ncpu",       in, vsapi );    
+    try {
+        getPlanesArg(in, process, vsapi);
 
-    try
-    {
-        FFT3DFilterMulti *d = new FFT3DFilterMulti( sigma1, beta, plane, bw, bh, bt, ow, oh,
+        int num_process = 0;
+        for (int i = 0; i < 3; i++)
+            if (process[i])
+                num_process++;
+        //fixme, completely derp, doesn't know how many planes so the default depends on whether or not planes argument was specified
+        //bug carried over from original
+        //should probably error out with 0 planes processed
+
+        set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
+        set_option_float( &beta,      1.0, "beta",       in, vsapi );
+        const int64_t b = num_process == 1 ? 48 : 32;
+        set_option_int64( &bw,          b, "bw",         in, vsapi );
+        set_option_int64( &bh,          b, "bh",         in, vsapi );
+        set_option_int64( &bt,          3, "bt",         in, vsapi );
+        set_option_int64( &ow,       bw/3, "ow",         in, vsapi );
+        set_option_int64( &oh,       bh/3, "oh",         in, vsapi );
+        set_option_float( &kratio,    2.0, "kratio",     in, vsapi );
+        set_option_float( &sharpen,     0, "sharpen",    in, vsapi );
+        set_option_float( &scutoff,  0.3f, "scutoff",    in, vsapi );
+        set_option_float( &svr,       1.0, "svr",        in, vsapi );
+        set_option_float( &smin,      4.0, "smin",       in, vsapi );
+        set_option_float( &smax,     20.0, "smax",       in, vsapi );
+        set_option_int64( &measure,     1, "measure",    in, vsapi );
+        set_option_int64( &interlaced,  0, "interlaced", in, vsapi );
+        set_option_int64( &wintype,     0, "wintype",    in, vsapi );
+        set_option_int64( &pframe,      0, "pframe",     in, vsapi );
+        set_option_int64( &px,          0, "px",         in, vsapi );
+        set_option_int64( &py,          0, "py",         in, vsapi );
+        set_option_int64( &pshow,       0, "pshow",      in, vsapi );
+        set_option_float( &pcutoff,  0.1f, "pcutoff",    in, vsapi );
+        set_option_float( &pfactor,     0, "pfactor",    in, vsapi );
+        set_option_float( &sigma2, sigma1, "sigma2",     in, vsapi );
+        set_option_float( &sigma3, sigma1, "sigma3",     in, vsapi );
+        set_option_float( &sigma4, sigma1, "sigma4",     in, vsapi );
+        set_option_float( &degrid,    1.0, "degrid",     in, vsapi );
+        set_option_float( &dehalo,      0, "dehalo",     in, vsapi );
+        set_option_float( &hr,        2.0, "hr",         in, vsapi );
+        set_option_float( &ht,       50.0, "ht",         in, vsapi );
+        set_option_int64( &ncpu,        1, "ncpu",       in, vsapi );    
+
+
+
+
+        FFT3DFilterMulti *d = new FFT3DFilterMulti( sigma1, beta, process, bw, bh, bt, ow, oh,
                                                     kratio, sharpen, scutoff, svr, smin, smax,
                                                     measure, interlaced, wintype,
                                                     pframe, px, py, pshow, pcutoff, pfactor,
                                                     sigma2, sigma3, sigma4, degrid,
                                                     dehalo, hr, ht, ncpu,
                                                     in, vsapi );
-        if( d == nullptr )
-            throw std::bad_alloc();
 
         vsapi->createFilter
         (
@@ -207,27 +236,30 @@ static void VS_CC createFFT3DFilter
     }
     catch( std::bad_alloc & )
     {
-        vsapi->setError( out, "FFT3DFilter:  create failure (FFT3DFilter)!" );
+        vsapi->setError( out, "FFT3DFilter: create failure (FFT3DFilter)!" );
+    }
+    catch (std::string &e) {
+        vsapi->setError(out, ("FFT3DFilter: " + e).c_str());
     }
     catch( FFT3DFilterMulti::bad_param &e )
     {
-        vsapi->setError( out, ("FFT3DFilter:  " + std::string(e.what())).c_str() );
+        vsapi->setError( out, ("FFT3DFilter: " + std::string(e.what())).c_str() );
     }
     catch( FFT3DFilter::bad_param &e )
     {
-        vsapi->setError( out, ("FFT3DFilter:  " + std::string(e.what())).c_str() );
+        vsapi->setError( out, ("FFT3DFilter: " + std::string(e.what())).c_str() );
     }
     catch( FFT3DFilter::bad_open &e )
     {
-        vsapi->setError( out, ("FFT3DFilter:  " + std::string(e.what())).c_str() );
+        vsapi->setError( out, ("FFT3DFilter: " + std::string(e.what())).c_str() );
     }
     catch( FFT3DFilter::bad_alloc &e )
     {
-        vsapi->setError( out, ("FFT3DFilter:  allocation failure (" + std::string(e.what()) + ")").c_str() );
+        vsapi->setError( out, ("FFT3DFilter: allocation failure (" + std::string(e.what()) + ")").c_str() );
     }
     catch( FFT3DFilter::bad_plan &e )
     {
-        vsapi->setError( out, ("FFT3DFilter:  FFTW3 plan failure (" + std::string(e.what()) + ")").c_str() );
+        vsapi->setError( out, ("FFT3DFilter: FFTW3 plan failure (" + std::string(e.what()) + ")").c_str() );
     }
     catch( ... )
     {

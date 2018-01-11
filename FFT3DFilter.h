@@ -72,8 +72,6 @@ private:
     float ht;       /* halo threshold - v1.9 */
     int   ncpu;     /* number of threads - v2.0 */
 
-    int multiplane; /* multiplane value */
-
     /* additional parameterss */
     float *in;
     fftwf_complex *outcache[5], *outtemp;
@@ -164,7 +162,7 @@ public:
         bool _measure, bool _interlaced, int _wintype,
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
         float _sigma2, float _sigma3, float _sigma4, float _degrid,
-        float _dehalo, float _hr, float _ht, int _ncpu, int _multiplane,
+        float _dehalo, float _hr, float _ht, int _ncpu,
         VSVideoInfo _vi, VSNodeRef *node
     );
 
@@ -174,16 +172,12 @@ public:
 
 class FFT3DFilterMulti
 {
-    FFT3DFilter *filtered;
-    FFT3DFilter *YClip, *UClip, *VClip;
-    int   multiplane;
+    FFT3DFilter *Clips[3];
     int   bt;       /* block size  along time (mumber of frames), =0 for Kalman, >0 for Wiener */
     int   pframe;   /* noise pattern frame number */
     bool  pshow;    /* show noise pattern */
     float pfactor;  /* noise pattern denoise strength */
     bool  isPatternSet;
-
-    VSFrameRef *newVideoFrame( const VSFrameRef *src, VSCore *core, const VSAPI *vsapi );
 
 public:
     VSVideoInfo vi;
@@ -196,7 +190,7 @@ public:
     /* Constructor */
     FFT3DFilterMulti
     (
-        float _sigma, float _beta, int _multiplane, int _bw, int _bh, int _bt, int _ow, int _oh,
+        float _sigma, float _beta, bool _process[3], int _bw, int _bh, int _bt, int _ow, int _oh,
         float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
         bool _measure, bool _interlaced, int _wintype,
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,

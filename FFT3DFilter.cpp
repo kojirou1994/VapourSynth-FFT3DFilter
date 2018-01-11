@@ -211,14 +211,14 @@ FFT3DFilter::FFT3DFilter
     bool _measure, bool _interlaced, int _wintype,
     int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
-    float _dehalo, float _hr, float _ht, int _ncpu, int _multiplane,
+    float _dehalo, float _hr, float _ht, int _ncpu,
     VSVideoInfo _vi, VSNodeRef *_node
 ) : sigma( _sigma ), beta( _beta ), plane( _plane ), bw( _bw ), bh( _bh ), bt( _bt ), ow( _ow ), oh( _oh ),
     kratio( _kratio ), sharpen( _sharpen ), scutoff( _scutoff ), svr( _svr ), smin( _smin ), smax( _smax ),
     measure( _measure ), interlaced( _interlaced ), wintype( _wintype ),
     pframe( _pframe ), px( _px ), py( _py ), pshow( _pshow ), pcutoff( _pcutoff ), pfactor( _pfactor ),
     sigma2( _sigma2 ), sigma3( _sigma3 ), sigma4( _sigma4 ), degrid( _degrid ),
-    dehalo( _dehalo ), hr( _hr ), ht( _ht ), ncpu( _ncpu ), multiplane( _multiplane ),
+    dehalo( _dehalo ), hr( _hr ), ht( _ht ), ncpu( _ncpu ),
     vi( _vi ), node( _node )
 {
     int i, j;
@@ -1643,71 +1643,41 @@ void FFT3DFilter::ApplyFilter
 //-------------------------------------------------------------------
 FFT3DFilterMulti::FFT3DFilterMulti
 (
-    float _sigma, float _beta, int _multiplane, int _bw, int _bh, int _bt, int _ow, int _oh,
+    float _sigma, float _beta, bool _process[3], int _bw, int _bh, int _bt, int _ow, int _oh,
     float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
     bool _measure, bool _interlaced, int _wintype,
     int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
     const VSMap *in, const VSAPI *vsapi
-) : filtered( nullptr ), YClip( nullptr ), UClip( nullptr ), VClip( nullptr ),
+) : Clips(),
     bt( _bt ), pframe( _pframe ), pshow( _pshow ), pfactor( _pfactor )
 {
     node =  vsapi->propGetNode( in, "clip", 0, 0 );
     vi   = *vsapi->getVideoInfo( node );
 
-    if( vi.format->colorFamily == cmGray )
-        _multiplane = 0;
-    multiplane = _multiplane;
-
-    if( _multiplane == 0 || _multiplane == 1 || _multiplane == 2 )
-    {
-        filtered = new FFT3DFilter( _sigma, _beta, _multiplane, _bw, _bh, _bt, _ow, _oh,
-                                    _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
-                                    _measure, _interlaced, _wintype,
-                                    _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
-                                    _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu, _multiplane,
-                                    vi, node );
-        isPatternSet = filtered->getIsPatternSet();
+    for (int i = 0; i < vi.format->numPlanes; i++) {
+        if (_process[i])
+            Clips[i] = new FFT3DFilter(_sigma, _beta, i, _bw, _bh, _bt, _ow, _oh,
+                _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
+                _measure, _interlaced, _wintype,
+                _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
+                _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu,
+                vi, node);
     }
-    else if( _multiplane == 3 || _multiplane == 4 )
-    {
 
-        UClip = new FFT3DFilter( _sigma, _beta, 1, _bw, _bh, _bt, _ow, _oh,
-                                 _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
-                                 _measure, _interlaced, _wintype,
-                                 _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
-                                 _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr,  _ht, _ncpu, _multiplane,
-                                 vi, node );
-
-        VClip = new FFT3DFilter( _sigma, _beta, 2, _bw, _bh, _bt, _ow, _oh,
-                                 _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
-                                 _measure, _interlaced, _wintype,
-                                 _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
-                                 _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr,  _ht, _ncpu, _multiplane,
-                                 vi, node );
-
-        if( _multiplane != 3 )
-        {
-            YClip = new FFT3DFilter( _sigma, _beta, 0, _bw, _bh, _bt, _ow, _oh,
-                                     _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
-                                     _measure, _interlaced, _wintype,
-                                     _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
-                                     _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu, _multiplane,
-                                     vi, node );
+    for (int i = 2; i >= 0; i--) {
+        if (Clips[i]) {
+            isPatternSet = Clips[i]->getIsPatternSet();
+            break;
         }
-        isPatternSet = UClip->getIsPatternSet();
     }
-    else
-        throw bad_param{ "plane must be from 0 to 4!" };
 }
 
 FFT3DFilterMulti::~FFT3DFilterMulti()
 {
-    delete filtered;
-    delete YClip;
-    delete UClip;
-    delete VClip;
+    for (int i = 0; i < 3; i++)
+        delete Clips[i];
 }
 
 void FFT3DFilterMulti::RequestFrame
@@ -1737,23 +1707,6 @@ void FFT3DFilterMulti::RequestFrame
         vsapi->requestFrameFilter( n, node, frame_ctx );
 }
 
-VSFrameRef *FFT3DFilterMulti::newVideoFrame
-(
-    const VSFrameRef *src,
-    VSCore           *core,
-    const VSAPI      *vsapi
-)
-{
-    VSFrameRef *dst = vsapi->newVideoFrame
-    (
-        vsapi->getFrameFormat( src ),
-        vsapi->getFrameWidth ( src, 0 ),
-        vsapi->getFrameHeight( src, 0 ),
-        src, core
-    );
-    return dst;
-}
-
 VSFrameRef *FFT3DFilterMulti::GetFrame
 (
     int             n,
@@ -1765,34 +1718,29 @@ VSFrameRef *FFT3DFilterMulti::GetFrame
     /* Request frame 'n' from the source clip. */
     const VSFrameRef *src = vsapi->getFrameFilter( n, node, frame_ctx );
 
-    VSFrameRef *dst;
+    VSFrameRef *dst = nullptr;
     if( pfactor != 0 && pshow == true )
         dst = vsapi->copyFrame( src, core );
     else if( bt == 0 && n == 0 )
         /* Kalman filter does nothing for the first frame. */
-        dst = const_cast<VSFrameRef *>(vsapi->cloneFrameRef( src ));
+        dst = vsapi->copyFrame(src, core);
     else
     {
-        dst = newVideoFrame( src, core, vsapi );
-        if( multiplane < 3 )
-            CopyFrame( src, dst, vi, multiplane, vsapi );
+        int planes[3] = { 0, 1, 2 };
+        const VSFrameRef *srcf[3] = { Clips[0] ? nullptr : src, Clips[1] ? nullptr : src, Clips[2] ? nullptr : src };
+        dst = vsapi->newVideoFrame2(vsapi->getFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), srcf, planes, src, core);
     }
 
-    if( multiplane < 3 )
-    {
-        filtered->ApplyFilter( n, dst, src, frame_ctx, core, vsapi );
-        isPatternSet = filtered->getIsPatternSet();
+    for (int i = 0; i < 3; i++) {
+        if (Clips[i])
+            Clips[i]->ApplyFilter(n, dst, src, frame_ctx, core, vsapi);
     }
-    else
-    {
-        if( YClip != nullptr )
-            YClip->ApplyFilter( n, dst, src, frame_ctx, core, vsapi );
-        else
-            BitBlt( vsapi->getWritePtr( dst, 0 ), vsapi->getStride( dst, 0 ), vsapi->getReadPtr( src, 0 ),
-                    vsapi->getStride( src, 0 ), vsapi->getFrameWidth( src, 0 ), vsapi->getFrameHeight( src, 0 ) );
-        UClip->ApplyFilter( n, dst, src, frame_ctx, core, vsapi );
-        VClip->ApplyFilter( n, dst, src, frame_ctx, core, vsapi );
-        isPatternSet = UClip->getIsPatternSet();
+
+    for (int i = 2; i >= 0; i--) {
+        if (Clips[i]) {
+            isPatternSet = Clips[i]->getIsPatternSet();
+            break;
+        }
     }
 
     vsapi->freeFrame( src );
