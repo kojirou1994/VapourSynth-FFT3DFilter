@@ -100,9 +100,6 @@ static const VSFrameRef * VS_CC getFrameFFT3DFilter
 {
     FFT3DFilterMulti *d = static_cast<FFT3DFilterMulti *>(*instance_data);
 
-    if( n < 0 )                n = 0;
-    if( n >= d->vi.numFrames ) n = d->vi.numFrames - 1;
-
     try
     {
         if( activation_reason == arInitial )
