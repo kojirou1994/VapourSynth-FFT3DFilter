@@ -80,7 +80,9 @@ private:
     fftwf_complex *outcache[5];
     fftwf_complex *outrez;
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> gridsample;
-    fftwf_plan plan, planinv, plan1;
+    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
+    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
+    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan1;
     int nox, noy;
     int outwidth;
     int outpitch;
