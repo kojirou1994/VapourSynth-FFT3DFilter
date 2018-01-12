@@ -240,14 +240,9 @@ vi(_vi), node(_node) {
     gridsample = fftwf_alloc_complex(outsize); /* v1.8 */
 
     /* fft cache - added in v1.8 */
-    cachesize = bt + 2;
-    cachewhat = std::unique_ptr<int[]>(new int[cachesize]);
-    cachefft  = (fftwf_complex **)fftwf_malloc( sizeof(fftwf_complex *) * cachesize );
-    for( i = 0; i < cachesize; i++ )
-    {   
-        cachefft [i] = fftwf_alloc_complex(outsize);
-        cachewhat[i] = -1; /* init as notexistant */
-    }
+    fftcache.resize(bt + 2);
+    for (auto &iter : fftcache)
+        iter.fft = fftwf_alloc_complex(outsize);
 
     int planFlags = measure ? FFTW_MEASURE: FFTW_ESTIMATE;
     int rank = 2; /* 2d */
@@ -513,11 +508,10 @@ FFT3DFilter::~FFT3DFilter()
         fftwf_free( covar );
         fftwf_free( covarProcess );
     }
-    for( int i = 0; i < cachesize; i++ )
+    for( auto &iter : fftcache )
     {
-        fftwf_free( cachefft[i] );
+        fftwf_free( iter.fft );
     }
-    fftwf_free( cachefft );
     fftwf_free( gridsample ); /* fixed memory leakage in v1.8.5 */
 }
 //-----------------------------------------------------------------------
@@ -1243,42 +1237,28 @@ static void Copyfft( fftwf_complex *outrez, const fftwf_complex *outprev, int ou
             outsize * sizeof(fftwf_complex) );
 }
 //-------------------------------------------------------------------------------------------
-static void SortCache( int *cachewhat, fftwf_complex **cachefft, int cachesize, int cachestart, int cachestartold )
+static void SortCache( std::vector<FFT3DFilter::FFTCacheRec> &fftcache, int cachestart, int cachestartold )
 {
     /* sort ordered series, put existant ffts to proper places */
-    int i;
-    int ctemp;
-    fftwf_complex *ffttemp;
 
     int offset = cachestart - cachestartold;
     if( offset > 0 ) /* right */
     {
-        for( i = 0; i < cachesize; i++ )
+        for( int i = 0; i < fftcache.size(); i++ )
         {
-            if( (i + offset) < cachesize )
+            if( (i + offset) < fftcache.size())
             {
-                /* swap */
-                ctemp = cachewhat[i + offset];
-                cachewhat[i + offset] = cachewhat[i];
-                cachewhat[i         ] = ctemp;
-                ffttemp = cachefft[i + offset];
-                cachefft[i + offset] = cachefft[i];
-                cachefft[i         ] = ffttemp;
+                std::swap(fftcache[i + offset], fftcache[i]);
             }
         }
     }
     else if( offset < 0 )
     {
-        for( i = cachesize - 1; i >= 0; i-- )
+        for( int i = fftcache.size() - 1; i >= 0; i-- )
         {
             if( (i + offset) >= 0 )
             {
-                ctemp = cachewhat[i + offset];
-                cachewhat[i + offset] = cachewhat[i];
-                cachewhat[i         ] = ctemp;
-                ffttemp = cachefft[i + offset];
-                cachefft[i + offset] = cachefft[i];
-                cachefft[i         ] = ffttemp;
+                std::swap(fftcache[i + offset], fftcache[i]);
             }
         }
     }
@@ -1298,14 +1278,14 @@ void FFT3DFilter::Wiener3D
     constexpr int cachecur      = btcur / 2 + 1;
     int           cachestart    = n     - cachecur;
     int           cachestartold = nlast - cachecur;
-    SortCache( cachewhat.get(), cachefft, cachesize, cachestart, cachestartold );
+    SortCache( fftcache, cachestart, cachestartold );
 
     fftwf_complex **out = &outcache[btcur / 2];
 
     for( int offset = - btcur / 2; offset <= (btcur - 1) / 2; ++offset )
     {
-        out[offset] = cachefft[cachecur + offset];
-        if( cachewhat[cachecur + offset] != n + offset )
+        out[offset] = fftcache[cachecur + offset].fft;
+        if(fftcache[cachecur + offset].what != n + offset )
         {
             /* calculate out[offset] */
             if( offset != 0 )
@@ -1319,7 +1299,7 @@ void FFT3DFilter::Wiener3D
             InitOverlapPlane( in, reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase );
             /* make FFT 2D */
             fftwf_execute_dft_r2c( plan, in, out[offset] );
-            cachewhat[cachecur + offset] = n + offset;
+            fftcache[cachecur + offset].what = n + offset;
         }
         if( offset == - btcur / 2 )
         {
@@ -1333,8 +1313,7 @@ void FFT3DFilter::Wiener3D
                 outtemp     = outrez;
                 outrez      = out[offset];
                 out[offset] = outtemp;
-                cachefft [cachecur + offset] = outtemp;
-                cachewhat[cachecur + offset] = -1; /* will be destroyed */
+                fftcache[cachecur + offset] = { outtemp, -1 };
             }
         }
     }

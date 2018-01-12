@@ -22,12 +22,18 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 #include <fftw3.h>
 
 #include "VapourSynth.h"
 
 class FFT3DFilter
 {
+public:
+    struct FFTCacheRec {
+        fftwf_complex *fft = nullptr;
+        int what = -1;
+    };
 private:
     /* parameters */
     float sigma;    /* noise level (std deviation) for high frequncies */
@@ -124,10 +130,7 @@ private:
     bool  isPatternSet;
     float psigma;
 
-    //FIXME, these cache things should be turned into at least a vector of cache struct
-    fftwf_complex ** cachefft;  /* v1.8 */
-    std::unique_ptr<int[]> cachewhat; /* v1.8 */
-    int              cachesize; /* v1.8 */
+    std::vector<FFTCacheRec> fftcache;
 
     template<typename T>
     void InitOverlapPlane(float * __restrict inp0, const T * __restrict srcp0, int src_pitch, int planeBase);
