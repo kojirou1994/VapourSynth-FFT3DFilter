@@ -26,16 +26,6 @@
 
 #include "VapourSynth.h"
 
-class CustomException
-{
-private:
-    const std::string name;
-public:
-    CustomException() : name( std::string() ) {}
-    CustomException( const std::string name ) : name( name ) {}
-    const char * what() const noexcept { return name.c_str(); }
-};
-
 class FFT3DFilter
 {
 private:
@@ -149,10 +139,6 @@ private:
 public:
     VSVideoInfo vi;
     VSNodeRef  *node;
-    using bad_param = class bad_param : public CustomException { using CustomException::CustomException; };
-    using bad_alloc = class bad_alloc : public CustomException { using CustomException::CustomException; };
-    using bad_open  = class bad_open  : public CustomException { using CustomException::CustomException; };
-    using bad_plan  = class bad_plan  : public CustomException { using CustomException::CustomException; };
 
     template<typename T>
     void ApplyFilter( int n, VSFrameRef *dst, const VSFrameRef *src, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
@@ -187,7 +173,6 @@ class FFT3DFilterMulti
 public:
     VSVideoInfo vi;
     VSNodeRef  *node;
-    using bad_param = class bad_param : public CustomException { using CustomException::CustomException; };
 
     void RequestFrame( int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
     VSFrameRef *GetFrame( int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
@@ -205,5 +190,5 @@ public:
     );
 
     /* Destructor */
-    ~FFT3DFilterMulti();
+    void Free(const VSAPI *vsapi);
 };

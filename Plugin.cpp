@@ -34,10 +34,10 @@ static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsa
         int o = int64ToIntS(vsapi->propGetInt(in, "planes", i, nullptr));
 
         if (o < 0 || o >= 3)
-            throw std::string("plane index out of range");
+            throw std::runtime_error("plane index out of range");
 
         if (process[o])
-            throw std::string("plane specified twice");
+            throw std::runtime_error("plane specified twice");
 
         process[o] = true;
     }
@@ -122,9 +122,7 @@ static void VS_CC closeFFT3DFilter
     const VSAPI *vsapi
 )
 {
-    FFT3DFilterMulti *d = static_cast<FFT3DFilterMulti *>(instance_data);
-    vsapi->freeNode( d->node );
-    delete d;
+    static_cast<FFT3DFilterMulti *>(instance_data)->Free(vsapi);
 }
 
 static void VS_CC createFFT3DFilter
@@ -210,8 +208,14 @@ static void VS_CC createFFT3DFilter
         set_option_float( &ht,       50.0, "ht",         in, vsapi );
         set_option_int64( &ncpu,        1, "ncpu",       in, vsapi );    
 
-
-
+        if (bt < -1 || bt > 5)
+            throw std::runtime_error{ "bt must be -1(Sharpen), 0(Kalman), 1,2,3,4,5(Wiener)" };
+        if (ow * 2 > bw)
+            throw std::runtime_error{ "Must not be 2*ow > bw" };
+        if (oh * 2 > bh)
+            throw std::runtime_error{ "Must not be 2*oh > bh" };
+        if (beta < 1)
+            throw std::runtime_error{ "beta must be not less 1.0" };
 
         FFT3DFilterMulti *d = new FFT3DFilterMulti( sigma1, beta, process, bw, bh, bt, ow, oh,
                                                     kratio, sharpen, scutoff, svr, smin, smax,
@@ -231,35 +235,8 @@ static void VS_CC createFFT3DFilter
             fmParallelRequests, 0, d, core
         );
     }
-    catch( std::bad_alloc & )
-    {
-        vsapi->setError( out, "FFT3DFilter: create failure (FFT3DFilter)!" );
-    }
-    catch (std::string &e) {
-        vsapi->setError(out, ("FFT3DFilter: " + e).c_str());
-    }
-    catch( FFT3DFilterMulti::bad_param &e )
-    {
-        vsapi->setError( out, ("FFT3DFilter: " + std::string(e.what())).c_str() );
-    }
-    catch( FFT3DFilter::bad_param &e )
-    {
-        vsapi->setError( out, ("FFT3DFilter: " + std::string(e.what())).c_str() );
-    }
-    catch( FFT3DFilter::bad_open &e )
-    {
-        vsapi->setError( out, ("FFT3DFilter: " + std::string(e.what())).c_str() );
-    }
-    catch( FFT3DFilter::bad_alloc &e )
-    {
-        vsapi->setError( out, ("FFT3DFilter: allocation failure (" + std::string(e.what()) + ")").c_str() );
-    }
-    catch( FFT3DFilter::bad_plan &e )
-    {
-        vsapi->setError( out, ("FFT3DFilter: FFTW3 plan failure (" + std::string(e.what()) + ")").c_str() );
-    }
-    catch( ... )
-    {
+    catch (std::runtime_error &e) {
+        vsapi->setError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());
     }
 }
 

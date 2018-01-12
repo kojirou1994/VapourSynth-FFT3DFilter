@@ -195,18 +195,15 @@ pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pf
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu),
 vi(_vi), node(_node) {
+    int istat = fftwf_init_threads();
+    if (istat == 0)
+        throw std::runtime_error{ "fftwf_init_threads() failed!" };
+
     int i, j;
 
-    if (ow * 2 > bw) throw bad_param{ "Must not be 2*ow > bw" };
-    if (oh * 2 > bh) throw bad_param{ "Must not be 2*oh > bh" };
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
-    if (bt < -1 || bt > 5) throw bad_param{ "bt must be -1(Sharpen), 0(Kalman), 1,2,3,4,5(Wiener)" };
-
-    // fixme, move clip and argument checks out
-    if ((vi.format->bitsPerSample > 16 && vi.format->sampleType == stInteger) || (vi.format->bitsPerSample != 32 && vi.format->sampleType == stFloat))
-        throw bad_param{ "only 8-16 bit integer and 32 bit float are supported" };
     maxval = (1 << vi.format->bitsPerSample) - 1;
 
     planeBase = (plane && vi.format->sampleType == stInteger) ? (1 << (vi.format->bitsPerSample - 1)) : 0;
@@ -219,13 +216,6 @@ vi(_vi), node(_node) {
     noy += 2;
     mirw = bw - ow; /* set mirror size as block interval */
     mirh = bh - oh;
-
-    if (beta < 1)
-        throw bad_param{ "beta must be not less 1.0" };
-
-    int istat = fftwf_init_threads();
-    if (istat == 0)
-        throw bad_open{ "fftwf_init_threads() failed!" };
 
     coverwidth = nox * (bw - ow) + ow;
     coverheight = noy * (bh - oh) + oh;
@@ -278,12 +268,12 @@ vi(_vi), node(_node) {
     plan = fftwf_plan_many_dft_r2c( rank, ndim, howmanyblocks,
                                     in, inembed, istride, idist, outrez, onembed, ostride, odist, planFlags );
     if( plan == nullptr )
-        throw bad_plan{ "fftwf_plan_many_dft_r2c" };
+        throw std::runtime_error{ "fftwf_plan_many_dft_r2c" };
 
     planinv = fftwf_plan_many_dft_c2r( rank, ndim, howmanyblocks,
                                        outrez, onembed, ostride, odist, in, inembed, istride, idist, planFlags );
     if( planinv == nullptr )
-        throw bad_plan{ "fftwf_plan_many_dft_c2r" };
+        throw std::runtime_error{ "fftwf_plan_many_dft_c2r" };
 
     fftwf_plan_with_nthreads( 1 );
 
@@ -1599,28 +1589,37 @@ FFT3DFilterMulti::FFT3DFilterMulti
     node =  vsapi->propGetNode( in, "clip", 0, 0 );
     vi   = *vsapi->getVideoInfo( node );
 
-    for (int i = 0; i < vi.format->numPlanes; i++) {
-        if (_process[i])
-            Clips[i] = new FFT3DFilter(_sigma, _beta, i, _bw, _bh, _bt, _ow, _oh,
-                _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
-                _measure, _interlaced, _wintype,
-                _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
-                _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu,
-                vi, node);
-    }
+    try {
+        if ((vi.format->bitsPerSample > 16 && vi.format->sampleType == stInteger) || (vi.format->bitsPerSample != 32 && vi.format->sampleType == stFloat))
+            throw std::runtime_error{ "only 8-16 bit integer and 32 bit float are supported" };
 
-    for (int i = 2; i >= 0; i--) {
-        if (Clips[i]) {
-            isPatternSet = Clips[i]->getIsPatternSet();
-            break;
+        for (int i = 0; i < vi.format->numPlanes; i++) {
+            if (_process[i])
+                Clips[i] = new FFT3DFilter(_sigma, _beta, i, _bw, _bh, _bt, _ow, _oh,
+                    _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
+                    _measure, _interlaced, _wintype,
+                    _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
+                    _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu,
+                    vi, node);
         }
+
+        for (int i = 2; i >= 0; i--) {
+            if (Clips[i]) {
+                isPatternSet = Clips[i]->getIsPatternSet();
+                break;
+            }
+        }
+    } catch (std::runtime_error &) {
+        Free(vsapi);
+        throw;
     }
 }
 
-FFT3DFilterMulti::~FFT3DFilterMulti()
-{
+void FFT3DFilterMulti::Free(const VSAPI *vsapi) {
     for (int i = 0; i < 3; i++)
         delete Clips[i];
+    vsapi->freeNode(node);
+    delete this;
 }
 
 void FFT3DFilterMulti::RequestFrame
