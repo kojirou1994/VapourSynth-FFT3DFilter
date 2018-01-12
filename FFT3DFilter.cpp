@@ -194,7 +194,10 @@ measure(_measure), interlaced(_interlaced), wintype(_wintype),
 pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu),
-vi(_vi), node(_node), wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr), pattern2d(nullptr, nullptr), pattern3d(nullptr, nullptr), in(nullptr, nullptr) {
+vi(_vi), node(_node), wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
+pattern2d(nullptr, nullptr), pattern3d(nullptr, nullptr), in(nullptr, nullptr),
+gridsample(nullptr, nullptr), outLast(nullptr, nullptr), covar(nullptr, nullptr),
+covarProcess(nullptr, nullptr) {
     int istat = fftwf_init_threads();
     if (istat == 0)
         throw std::runtime_error{ "fftwf_init_threads() failed!" };
@@ -232,12 +235,12 @@ vi(_vi), node(_node), wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr), pat
 
     if (bt == 0) /* Kalman */
     { 
-        outLast = fftwf_alloc_complex(outsize);
-        covar = fftwf_alloc_complex(outsize);
-        covarProcess = fftwf_alloc_complex(outsize);
+        outLast = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
+        covar = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
+        covarProcess = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
     }
     outrez = fftwf_alloc_complex(outsize); /* v1.8 */
-    gridsample = fftwf_alloc_complex(outsize); /* v1.8 */
+    gridsample = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
 
     /* fft cache - added in v1.8 */
     fftcache.resize(bt + 2);
@@ -427,9 +430,9 @@ vi(_vi), node(_node), wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr), pat
     /* init Kalman */
     if( bt == 0 ) /* Kalman */
     {
-        fill_complex( outLast,      outsize, 0, 0 );
-        fill_complex( covar,        outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
-        fill_complex( covarProcess, outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
+        fill_complex( outLast.get(),      outsize, 0, 0 );
+        fill_complex( covar.get(),        outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
+        fill_complex( covarProcess.get(), outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
     }
 
     mean = std::unique_ptr<float[]>(new float[nox * noy]); 
@@ -481,7 +484,7 @@ vi(_vi), node(_node), wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr), pat
         InitOverlapPlane(in.get(), reinterpret_cast<float *>(coverbuf.get()), coverpitch, 0);
     }
     /* make FFT 2D */
-    fftwf_execute_dft_r2c( plan1, in.get(), gridsample );
+    fftwf_execute_dft_r2c( plan1, in.get(), gridsample.get() );
 }
 //-------------------------------------------------------------------------------------------
 
@@ -491,13 +494,6 @@ FFT3DFilter::~FFT3DFilter()
     fftwf_destroy_plan( plan1 );
     fftwf_destroy_plan( planinv );
     fftwf_free( outrez );
-    if( bt == 0 ) /* Kalman */
-    {
-        fftwf_free( outLast );
-        fftwf_free( covar );
-        fftwf_free( covarProcess );
-    }
-    fftwf_free( gridsample ); /* fixed memory leakage in v1.8.5 */
 }
 //-----------------------------------------------------------------------
 //
@@ -1295,10 +1291,8 @@ void FFT3DFilter::Wiener3D
             else
             {
                 /* swap */
-                outtemp     = outrez;
-                outrez      = out[offset];
-                out[offset] = outtemp;
-                fftcache[cachecur + offset].fft = outtemp;
+                std::swap(outrez, out[offset]);
+                fftcache[cachecur + offset].fft = out[offset];
                 fftcache[cachecur + offset].what = -1;
             }
         }
@@ -1310,10 +1304,10 @@ void FFT3DFilter::Wiener3D
     if( degrid != 0 )
     {
         if( pfactor != 0 )
-            ApplyPattern3D_degrid< btcur >( outp[2], outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta, degrid, gridsample );
+            ApplyPattern3D_degrid< btcur >( outp[2], outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta, degrid, gridsample.get());
         else
-            ApplyWiener3D_degrid< btcur >( outp[2], outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
-        Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample, dehalo, wdehalo.get(), ht2n );
+            ApplyWiener3D_degrid< btcur >( outp[2], outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample.get());
+        Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
     }
     else
     {
@@ -1350,8 +1344,8 @@ void FFT3DFilter::ApplyFilter
         /* make FFT 2D */
         fftwf_execute_dft_r2c( plan, in.get(), outrez );
         if( px == 0 && py == 0 ) /* try find pattern block with minimal noise sigma */
-            FindPatternBlock( outrez, outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), degrid, gridsample );
-        SetPattern( outrez, outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), pattern2d.get(), psigma, degrid, gridsample );
+            FindPatternBlock( outrez, outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), degrid, gridsample.get());
+        SetPattern( outrez, outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), pattern2d.get(), psigma, degrid, gridsample.get());
         isPatternSet = true;
     }
     else if( pfactor != 0 && pshow == true )
@@ -1364,13 +1358,13 @@ void FFT3DFilter::ApplyFilter
 
         int pxf, pyf;
         if( px == 0 && py == 0 ) /* try find pattern block with minimal noise sigma */
-            FindPatternBlock( outrez, outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), degrid, gridsample );
+            FindPatternBlock( outrez, outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), degrid, gridsample.get() );
         else
         {
             pxf = px; /* fixed bug in v1.6 */
             pyf = py;
         }
-        SetPattern( outrez, outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, gridsample );
+        SetPattern( outrez, outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, gridsample.get());
 
         /* change analysis and synthesis window to constant to show */
         for( int i = 0; i < ow; i++ )
@@ -1437,11 +1431,11 @@ void FFT3DFilter::ApplyFilter
             {
                 if( pfactor != 0 )
                 {
-                    ApplyPattern2D_degrid_C( outrez, outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta, degrid, gridsample );
-                    Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample, dehalo, wdehalo.get(), ht2n );
+                    ApplyPattern2D_degrid_C( outrez, outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta, degrid, gridsample.get());
+                    Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
                 }
                 else
-                    ApplyWiener2D_degrid_C( outrez, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample, dehalo, wdehalo.get(), ht2n );
+                    ApplyWiener2D_degrid_C( outrez, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
             }
             else
             {
@@ -1491,16 +1485,16 @@ void FFT3DFilter::ApplyFilter
         /* make FFT 2D */
         fftwf_execute_dft_r2c( plan, in.get(), outrez );
         if( pfactor != 0 )
-            ApplyKalmanPattern( outrez, outLast, covar, covarProcess, outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio );
+            ApplyKalmanPattern( outrez, outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio );
         else
-            ApplyKalman( outrez, outLast, covar, covarProcess, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio );
+            ApplyKalman( outrez, outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio );
 
         /* copy outLast to outrez */
         memcpy( outrez,
-                outLast,
+                outLast.get(),
                 outsize * sizeof(fftwf_complex) );  /* v.0.9.2 */
         if( degrid != 0 )
-            Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample, dehalo, wdehalo.get(), ht2n );
+            Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
         else
             Sharpen( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
         /* do inverse FFT 2D, get filtered 'in' array
@@ -1519,7 +1513,7 @@ void FFT3DFilter::ApplyFilter
         /* make FFT 2D */
         fftwf_execute_dft_r2c( plan, in.get(), outrez );
         if( degrid != 0 )
-            Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample, dehalo, wdehalo.get(), ht2n );
+            Sharpen_degrid( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
         else
             Sharpen( outrez, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
         /* do inverse FFT 2D, get filtered 'in' array */

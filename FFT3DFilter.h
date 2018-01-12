@@ -77,8 +77,9 @@ private:
 
     /* additional parameterss */
     std::unique_ptr<float[], decltype(&fftw_free)> in;
-    fftwf_complex *outcache[5], *outtemp;
-    fftwf_complex *outrez, *gridsample; /* v1.8 */
+    fftwf_complex *outcache[5];
+    fftwf_complex *outrez;
+    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> gridsample;
     fftwf_plan plan, planinv, plan1;
     int nox, noy;
     int outwidth;
@@ -108,7 +109,9 @@ private:
     int nlast;  /* frame number at last step */
     int btcurlast;  /* v1.7 */
 
-    fftwf_complex *outLast,*covar, *covarProcess;
+    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outLast;
+    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> covar;
+    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> covarProcess;
     float sigmaSquaredNoiseNormed;
     float sigmaSquaredNoiseNormed2D;
     float sigmaNoiseNormed2D;
