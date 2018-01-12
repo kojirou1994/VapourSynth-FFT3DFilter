@@ -107,9 +107,9 @@ static const VSFrameRef * VS_CC getFrameFFT3DFilter
         else if( activation_reason == arAllFramesReady )
             return d->GetFrame( n, frame_ctx, core, vsapi );
     }
-    catch( std::bad_alloc &e )
+    catch( std::runtime_error &e )
     {
-        vsapi->setFilterError( ("FFT3DFilter:  " + std::string(e.what())).c_str(), frame_ctx );
+        vsapi->setFilterError( ("FFT3DFilter: " + std::string(e.what())).c_str(), frame_ctx );
     }
 
     return nullptr;
