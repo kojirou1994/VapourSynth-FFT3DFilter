@@ -79,7 +79,8 @@ private:
     fftwf_plan plan, planinv, plan1;
     int nox, noy;
     int outwidth;
-    int outpitch; /* v.1.7 */
+    int outpitch;
+    int outpitchelems; /* v.1.7 */
 
     int outsize;
     int howmanyblocks;
@@ -141,8 +142,8 @@ private:
     void InitOverlapPlane(float *inp0, const T *srcp0, int src_pitch, int planeBase);
     template<typename T>
     void DecodeOverlapPlane( const float *in, float norm, T *dstp, int dst_pitch, int planeBase );
-
-    template < int btcur > void Wiener3D( int n, const VSFrameRef *src, VSFrameContext *frame_ctx, const VSAPI *vsapi );
+    template < typename T, int btcur >
+    void Wiener3D( int n, const VSFrameRef *src, VSFrameContext *frame_ctx, const VSAPI *vsapi );
 
 public:
     VSVideoInfo vi;
@@ -152,6 +153,7 @@ public:
     using bad_open  = class bad_open  : public CustomException { using CustomException::CustomException; };
     using bad_plan  = class bad_plan  : public CustomException { using CustomException::CustomException; };
 
+    template<typename T>
     void ApplyFilter( int n, VSFrameRef *dst, const VSFrameRef *src, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
 
     inline bool getIsPatternSet() { return isPatternSet; }
