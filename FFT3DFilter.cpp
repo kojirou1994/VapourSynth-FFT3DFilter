@@ -508,10 +508,6 @@ FFT3DFilter::~FFT3DFilter()
         fftwf_free( covar );
         fftwf_free( covarProcess );
     }
-    for( auto &iter : fftcache )
-    {
-        fftwf_free( iter.fft );
-    }
     fftwf_free( gridsample ); /* fixed memory leakage in v1.8.5 */
 }
 //-----------------------------------------------------------------------
@@ -1248,7 +1244,7 @@ static void SortCache( std::vector<FFT3DFilter::FFTCacheRec> &fftcache, int cach
         {
             if( (i + offset) < fftcache.size())
             {
-                std::swap(fftcache[i + offset], fftcache[i]);
+                fftcache[i + offset].swap(fftcache[i]);
             }
         }
     }
@@ -1258,7 +1254,7 @@ static void SortCache( std::vector<FFT3DFilter::FFTCacheRec> &fftcache, int cach
         {
             if( (i + offset) >= 0 )
             {
-                std::swap(fftcache[i + offset], fftcache[i]);
+                fftcache[i + offset].swap(fftcache[i]);
             }
         }
     }
@@ -1313,7 +1309,8 @@ void FFT3DFilter::Wiener3D
                 outtemp     = outrez;
                 outrez      = out[offset];
                 out[offset] = outtemp;
-                fftcache[cachecur + offset] = { outtemp, -1 };
+                fftcache[cachecur + offset].fft = outtemp;
+                fftcache[cachecur + offset].what = -1;
             }
         }
     }

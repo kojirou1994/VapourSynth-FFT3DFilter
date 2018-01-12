@@ -33,6 +33,13 @@ public:
     struct FFTCacheRec {
         fftwf_complex *fft = nullptr;
         int what = -1;
+        void swap(FFTCacheRec &v) noexcept {
+            std::swap(fft, v.fft);
+            std::swap(what, v.what);
+        }
+        ~FFTCacheRec() {
+            fftwf_free(fft);
+        }
     };
 private:
     /* parameters */
