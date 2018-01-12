@@ -177,6 +177,8 @@ static void VS_CC createFFT3DFilter
 
         //fixme, should probably error out with 0 planes processed too
 
+        //fixme, the cache has a weird structure that should be rewritten
+
         set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
         set_option_float( &beta,      1.0, "beta",       in, vsapi );
         const int64_t b = num_process == 1 ? 48 : 32;

@@ -93,7 +93,7 @@ libdir=""
 vsplugindir=""
 DESTDIR=""
 
-CXXFLAGS="-Wall -std=c++11 -I. -I$SRCDIR"
+CXXFLAGS="-Wall -std=c++17 -I. -I$SRCDIR"
 LDFLAGS="-L."
 DEPLIBS="libfftw3f"
 
