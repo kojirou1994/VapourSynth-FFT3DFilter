@@ -21,7 +21,7 @@
  *****************************************************************************/
 
 #include <string>
-
+#include <memory>
 #include <fftw3.h>
 
 #include "VapourSynth.h"
@@ -89,15 +89,15 @@ private:
     int inembed[2];
     int onembed[2];
 
-    float *wanxl; /* analysis */
-    float *wanxr;
-    float *wanyl;
-    float *wanyr;
+    std::unique_ptr<float[]> wanxl; /* analysis */
+    std::unique_ptr<float[]> wanxr;
+    std::unique_ptr<float[]> wanyl;
+    std::unique_ptr<float[]> wanyr;
 
-    float *wsynxl; /* synthesis */
-    float *wsynxr;
-    float *wsynyl;
-    float *wsynyr;
+    std::unique_ptr<float[]> wsynxl; /* synthesis */
+    std::unique_ptr<float[]> wsynxr;
+    std::unique_ptr<float[]> wsynyl;
+    std::unique_ptr<float[]> wsynyr;
 
     float *wsharpen;
     float *wdehalo;
@@ -115,7 +115,7 @@ private:
     float ht2n; /* halo threshold squared normed */
     float norm; /* normalization factor */
 
-    uint8_t *coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
+    std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
     int coverheight;
     int coverpitch;
@@ -126,16 +126,16 @@ private:
     int planeBase; /* color base value (0 for luma, 128 for chroma) */
     int maxval;
 
-    float *mean;
+    std::unique_ptr<float[]> mean;
 
-    float *pwin;
+    std::unique_ptr<float[]> pwin;
     float *pattern2d;
     float *pattern3d;
     bool  isPatternSet;
     float psigma;
 
     fftwf_complex ** cachefft;  /* v1.8 */
-    int            * cachewhat; /* v1.8 */
+    std::unique_ptr<int[]> cachewhat; /* v1.8 */
     int              cachesize; /* v1.8 */
 
     template<typename T>
