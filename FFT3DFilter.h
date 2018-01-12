@@ -133,7 +133,6 @@ private:
     float *pattern3d;
     bool  isPatternSet;
     float psigma;
-    char *messagebuf;
 
     fftwf_complex ** cachefft;  /* v1.8 */
     int            * cachewhat; /* v1.8 */

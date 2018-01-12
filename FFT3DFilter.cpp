@@ -507,8 +507,6 @@ FFT3DFilter::FFT3DFilter
     }
     /* make FFT 2D */
     fftwf_execute_dft_r2c( plan1, in, gridsample );
-
-    messagebuf = (char *)malloc( 80 ); /* 1.8.5 */
 }
 //-------------------------------------------------------------------------------------------
 
@@ -547,8 +545,6 @@ FFT3DFilter::~FFT3DFilter()
     }
     fftwf_free( cachefft );
     fftwf_free( gridsample ); /* fixed memory leakage in v1.8.5 */
-
-    free( messagebuf ); /* v1.8.5 */
 }
 //-----------------------------------------------------------------------
 //
@@ -1466,8 +1462,8 @@ void FFT3DFilter::ApplyFilter
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
         int psigmaint = ((int)(10 * psigma)) / 10;
         int psigmadec = (int)((psigma - psigmaint) * 10);
-        sprintf( messagebuf," frame=%d, px=%d, py=%d, sigma=%d.%d", n, pxf, pyf, psigmaint, psigmadec );
-        DrawString( dst, 0, 0, messagebuf, vsapi );
+        std::string messagebuf = "frame=" + std::to_string(n) + ", px=" + std::to_string(pxf) + ", py=" + std::to_string(pyf) + ", sigma=" + std::to_string(psigmaint) + "." + std::to_string(psigmadec);
+        DrawString( dst, 0, 0, messagebuf.c_str(), vsapi );
 
         return;
     }
