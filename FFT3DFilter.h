@@ -76,7 +76,7 @@ private:
     int   ncpu;     /* number of threads - v2.0 */
 
     /* additional parameterss */
-    float *in;
+    std::unique_ptr<float[], decltype(&fftw_free)> in;
     fftwf_complex *outcache[5], *outtemp;
     fftwf_complex *outrez, *gridsample; /* v1.8 */
     fftwf_plan plan, planinv, plan1;
@@ -102,8 +102,8 @@ private:
     std::unique_ptr<float[]> wsynyl;
     std::unique_ptr<float[]> wsynyr;
 
-    float *wsharpen;
-    float *wdehalo;
+    std::unique_ptr<float[], decltype(&fftw_free)> wsharpen;
+    std::unique_ptr<float[], decltype(&fftw_free)> wdehalo;
 
     int nlast;  /* frame number at last step */
     int btcurlast;  /* v1.7 */
@@ -132,8 +132,8 @@ private:
     std::unique_ptr<float[]> mean;
 
     std::unique_ptr<float[]> pwin;
-    float *pattern2d;
-    float *pattern3d;
+    std::unique_ptr<float[], decltype(&fftw_free)> pattern2d;
+    std::unique_ptr<float[], decltype(&fftw_free)> pattern3d;
     bool  isPatternSet;
     float psigma;
 
