@@ -203,6 +203,8 @@ plan1(nullptr, nullptr) {
     if (istat == 0)
         throw std::runtime_error{ "fftwf_init_threads() failed!" };
 
+    fftwf_make_planner_thread_safe();
+
     int i, j;
 
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
