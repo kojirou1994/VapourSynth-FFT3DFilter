@@ -197,7 +197,6 @@ FFT3DFilter::FFT3DFilter
     vi( _vi ), node( _node )
 {
     int i, j;
-    //_asm emms;
 
     if( ow * 2 > bw ) throw bad_param{ "Must not be 2*ow > bw" };
     if( oh * 2 > bh ) throw bad_param{ "Must not be 2*oh > bh" };
@@ -207,10 +206,11 @@ FFT3DFilter::FFT3DFilter
     if( bt < -1 || bt > 5 ) throw bad_param{ "bt must be -1(Sharpen), 0(Kalman), 1,2,3,4,5(Wiener)" };
 
     // fixme, move clip and argument checks out
-    if( (vi.format->bitsPerSample > 16 && vi.format->sampleType == stInteger) || (vi.format->bitsPerSample == 32 && vi.format->sampleType == stFloat))
+    if( (vi.format->bitsPerSample > 16 && vi.format->sampleType == stInteger) || (vi.format->bitsPerSample != 32 && vi.format->sampleType == stFloat))
         throw bad_param{ "only 8-16 bit integer and 32 bit float are supported" };
+    maxval = (1 << vi.format->bitsPerSample) - 1;
 
-    planeBase = plane ? (1 << (vi.format->bitsPerSample - 1)) : 0;
+    planeBase = (plane && vi.format->sampleType == stInteger)  ? (1 << (vi.format->bitsPerSample - 1)) : 0;
 
     nox = ((vi.width  >> (plane ? vi.format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((vi.height >> (plane ? vi.format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
@@ -925,7 +925,7 @@ void FFT3DFilter::InitOverlapPlane( float * __restrict inp0, const T * __restric
 /* make destination frame plane from overlaped blocks
  * use synthesis windows wsynxl, wsynxr, wsynyl, wsynyr */
 template<typename T>
-void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm, T * __restrict dstp0, int dst_pitch, int planeBase )
+void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm, T * __restrict dstp0, int dst_pitch, int planeBase, int maxval )
 {
     int w, h;
     int ihx, ihy;
@@ -935,16 +935,17 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
     int yoffset = bw * nox * bh - bw * (bh - oh); /* vertical offset of same block (overlap) */
     dst_pitch /= sizeof(T);
 
-    const int maxval = std::numeric_limits<T>::max();
-
     ihy = 0; /* first top big non-overlapped) part */
     {
         for( h = 0; h < bh - oh; h++ )
         {
             inp = inp0 + h * bw;
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
-            {
-                dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) ); /* Copy each byte from float array to dest with windows */
+            {   
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) ); /* Copy each byte from float array to dest with windows */
+                else 
+                    dstp[w] = inp[w] * norm;
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -952,20 +953,29 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
             {
                 for( w = 0; w < ow; w++ )   /* half line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* first half line of first block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );   /* Copy each byte from float array to dest with windows */
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );   /* Copy each byte from float array to dest with windows */
+                    else
+                        dstp[w] = inp[w] * norm;
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min(maxval, std::max( 0,(int)(inp[w] * norm) + planeBase ) );
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0,(int)(inp[w] * norm) + planeBase ) );
+                else
+                    dstp[w] = inp[w] * norm;
             }
             inp  += ow;
             dstp += ow;
@@ -985,7 +995,10 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
 
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );   /* y overlapped */
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );   /* y overlapped */
+                else
+                    dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -993,21 +1006,31 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
             {
                 for( w = 0; w < ow; w++ )   /* half overlapped line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
                             + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh)) + planeBase ) );   /* x overlapped */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
+                            + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh;
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* double minus - half non-overlapped line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh )) + planeBase ) );
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh )) + planeBase ) );
+                    else
+                        dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );
+                else
+                    dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
             }
             inp  += ow;
             dstp += ow;
@@ -1020,7 +1043,10 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh) * bw + h * bw + yoffset;
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                else
+                    dstp[w] = inp[w] * norm;
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -1028,20 +1054,29 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
             {
                 for( w = 0; w < ow; w++ )   /* half overlapped line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w] ) * norm) + planeBase ) );   /* x overlapped */
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w] ) * norm) + planeBase ) );   /* x overlapped */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                    else
+                        dstp[w] = inp[w] * norm;
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                else
+                    dstp[w] = inp[w] * norm;
             }
             inp  += ow;
             dstp += ow;
@@ -1057,7 +1092,10 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
             for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
             {
-                dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                else
+                    dstp[w] = inp[w] * norm;
             }
             inp  += bw - ow;
             dstp += bw - ow;
@@ -1065,20 +1103,29 @@ void FFT3DFilter::DecodeOverlapPlane( const float * __restrict inp0, float norm,
             {
                 for( w = 0; w < ow; w++ )   /* half line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
                 }
                 inp  += xoffset + ow;
                 dstp += ow;
                 for( w = 0; w < bw - ow - ow; w++ )   /* half line of block */
                 {
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w]) * norm) + planeBase ) );
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                    else
+                        dstp[w] = inp[w] * norm;
                 }
                 inp  += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
             for( w = 0; w < ow; w++ )   /* last half line of last block */
             {
-                dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
+                else
+                    dstp[w] = inp[w] * norm;
             }
             inp  += ow;
             dstp += ow;
@@ -1400,6 +1447,7 @@ void FFT3DFilter::ApplyFilter
             wanyl[i] = 1;    wanyr[i] = 1;    wsynyl[i] = 1;    wsynyr[i] = 1;
         }
 
+        //FIXME, why is planebase assigned here?
         planeBase = 128;
 
         /* put source bytes to float array of overlapped blocks */
@@ -1414,7 +1462,7 @@ void FFT3DFilter::ApplyFilter
         fftwf_execute_dft_c2r( planinv, outrez, in );
 
         /* make destination frame plane from current overlaped blocks */
-        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase );
+        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase, maxval );
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
         int psigmaint = ((int)(10 * psigma)) / 10;
         int psigmadec = (int)((psigma - psigmaint) * 10);
@@ -1491,7 +1539,7 @@ void FFT3DFilter::ApplyFilter
             Wiener3D< T, 5 >( n, src, frame_ctx, vsapi );
         }
         /* make destination frame plane from current overlaped blocks */
-        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase );
+        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase, maxval);
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
     }
     else if( bt == 0 ) /* Kalman filter */
@@ -1525,7 +1573,7 @@ void FFT3DFilter::ApplyFilter
          * that is why we must have its copy in "outLast" array */
         fftwf_execute_dft_c2r( planinv, outrez, in );
         /* make destination frame plane from current overlaped blocks */
-        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase );
+        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase, maxval);
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
     }
     else if( bt == -1 ) /* sharpen only */
@@ -1542,7 +1590,7 @@ void FFT3DFilter::ApplyFilter
         /* do inverse FFT 2D, get filtered 'in' array */
         fftwf_execute_dft_c2r( planinv, outrez, in );
         /* make destination frame plane from current overlaped blocks */
-        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase );
+        DecodeOverlapPlane( in, norm, reinterpret_cast<T *>(coverbuf), coverpitch, planeBase, maxval);
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
     }
 
@@ -1645,10 +1693,16 @@ VSFrameRef *FFT3DFilterMulti::GetFrame
         const VSFrameRef *srcf[3] = { Clips[0] ? nullptr : src, Clips[1] ? nullptr : src, Clips[2] ? nullptr : src };
         dst = vsapi->newVideoFrame2(vsapi->getFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), srcf, planes, src, core);
     }
-
+    
     for (int i = 0; i < 3; i++) {
-        if (Clips[i])
-            Clips[i]->ApplyFilter<uint16_t>(n, dst, src, frame_ctx, core, vsapi);
+        if (Clips[i]) {
+            if (vi.format->bytesPerSample == 1)
+                Clips[i]->ApplyFilter<uint8_t>(n, dst, src, frame_ctx, core, vsapi);
+            else if (vi.format->bytesPerSample == 2)
+                Clips[i]->ApplyFilter<uint16_t>(n, dst, src, frame_ctx, core, vsapi);
+            else if (vi.format->bytesPerSample == 4)
+                Clips[i]->ApplyFilter<float>(n, dst, src, frame_ctx, core, vsapi);
+        }
     }
 
     for (int i = 2; i >= 0; i--) {

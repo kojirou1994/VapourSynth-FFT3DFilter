@@ -124,6 +124,7 @@ private:
     int mirh; /* mirror height for padding */
 
     int planeBase; /* color base value (0 for luma, 128 for chroma) */
+    int maxval;
 
     float *mean;
 
@@ -139,9 +140,9 @@ private:
     int              cachesize; /* v1.8 */
 
     template<typename T>
-    void InitOverlapPlane(float *inp0, const T *srcp0, int src_pitch, int planeBase);
+    void InitOverlapPlane(float * __restrict inp0, const T * __restrict srcp0, int src_pitch, int planeBase);
     template<typename T>
-    void DecodeOverlapPlane( const float *in, float norm, T *dstp, int dst_pitch, int planeBase );
+    void DecodeOverlapPlane(const float * __restrict inp0, float norm, T * __restrict dstp0, int dst_pitch, int planeBase, int maxval);
     template < typename T, int btcur >
     void Wiener3D( int n, const VSFrameRef *src, VSFrameContext *frame_ctx, const VSAPI *vsapi );
 
