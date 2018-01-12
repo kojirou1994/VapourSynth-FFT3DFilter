@@ -233,7 +233,7 @@ vi(_vi), node(_node) {
     coverbuf = std::unique_ptr<uint8_t[]>(new uint8_t[coverheight * coverpitch]);
 
     int insize = bw * bh * nox * noy;
-    in = (float *)fftwf_malloc(sizeof(float) * insize);
+    in = fftwf_alloc_real(insize);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;    /* must be even for SSE - v1.7 */
     outpitch = outpitchelems * vi.format->bytesPerSample;
@@ -241,21 +241,21 @@ vi(_vi), node(_node) {
     outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 
     if (bt == 0) /* Kalman */
-    {
-        outLast = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * outsize);
-        covar = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * outsize);
-        covarProcess = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * outsize);
+    { 
+        outLast = fftwf_alloc_complex(outsize);
+        covar = fftwf_alloc_complex(outsize);
+        covarProcess = fftwf_alloc_complex(outsize);
     }
-    outrez = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * outsize); /* v1.8 */
-    gridsample = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * outsize); /* v1.8 */
+    outrez = fftwf_alloc_complex(outsize); /* v1.8 */
+    gridsample = fftwf_alloc_complex(outsize); /* v1.8 */
 
     /* fft cache - added in v1.8 */
     cachesize = bt + 2;
     cachewhat = std::unique_ptr<int[]>(new int[cachesize]);
     cachefft  = (fftwf_complex **)fftwf_malloc( sizeof(fftwf_complex *) * cachesize );
     for( i = 0; i < cachesize; i++ )
-    {
-        cachefft [i] = (fftwf_complex *)fftwf_malloc( sizeof(fftwf_complex) * outsize );
+    {   
+        cachefft [i] = fftwf_alloc_complex(outsize);
         cachewhat[i] = -1; /* init as notexistant */
     }
 
@@ -297,8 +297,8 @@ vi(_vi), node(_node) {
     wsynyl = std::unique_ptr<float[]>(new float[oh]);
     wsynyr = std::unique_ptr<float[]>(new float[oh]);
 
-    wsharpen = (float *)fftwf_malloc( bh * outpitchelems * sizeof(float) );
-    wdehalo  = (float *)fftwf_malloc( bh * outpitchelems * sizeof(float) );
+    wsharpen = fftwf_alloc_real(bh * outpitchelems);
+    wdehalo  = fftwf_alloc_real(bh * outpitchelems);
 
     /* define analysis and synthesis windows
      * combining window (analize mult by synthesis) is raised cosine (Hanning) */
@@ -470,8 +470,8 @@ vi(_vi), node(_node) {
         }
     }
 
-    pattern2d = (float *)fftwf_malloc( bh * outpitchelems * sizeof(float) ); /* noise pattern window array */
-    pattern3d = (float *)fftwf_malloc( bh * outpitchelems * sizeof(float) ); /* noise pattern window array */
+    pattern2d = fftwf_alloc_real(bh * outpitchelems); /* noise pattern window array */
+    pattern3d = fftwf_alloc_real(bh * outpitchelems); /* noise pattern window array */
 
     if( (sigma2 != sigma || sigma3 != sigma || sigma4 != sigma) && pfactor == 0 )
     {   /* we have different sigmas, so create pattern from sigmas */

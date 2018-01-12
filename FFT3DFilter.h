@@ -134,6 +134,7 @@ private:
     bool  isPatternSet;
     float psigma;
 
+    //FIXME, these cache things should be turned into at least a vector of cache struct
     fftwf_complex ** cachefft;  /* v1.8 */
     std::unique_ptr<int[]> cachewhat; /* v1.8 */
     int              cachesize; /* v1.8 */
