@@ -174,7 +174,8 @@ static void VS_CC createFFT3DFilter
                 num_process++;
         //fixme, completely derp, doesn't know how many planes so the default depends on whether or not planes argument was specified
         //bug carried over from original
-        //should probably error out with 0 planes processed
+
+        //fixme, should probably error out with 0 planes processed too
 
         set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
         set_option_float( &beta,      1.0, "beta",       in, vsapi );

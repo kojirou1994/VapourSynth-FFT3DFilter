@@ -1376,8 +1376,8 @@ void FFT3DFilter::ApplyFilter
             wanyl[i] = 1;    wanyr[i] = 1;    wsynyl[i] = 1;    wsynyr[i] = 1;
         }
 
-        //FIXME, why is planebase assigned here?
-        planeBase = 128;
+        //FIXME, why is planebase assigned here? originally always assigned 128
+        planeBase = (vi.format->sampleType == stInteger) ? (1 << (vi.format->bitsPerSample - 1)) : 0;
 
         /* put source bytes to float array of overlapped blocks */
         /* cur frame */
