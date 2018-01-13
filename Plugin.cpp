@@ -100,17 +100,10 @@ static const VSFrameRef * VS_CC getFrameFFT3DFilter
 {
     FFT3DFilterMulti *d = static_cast<FFT3DFilterMulti *>(*instance_data);
 
-    try
-    {
-        if( activation_reason == arInitial )
-            d->RequestFrame( n, frame_ctx, core, vsapi );
-        else if( activation_reason == arAllFramesReady )
-            return d->GetFrame( n, frame_ctx, core, vsapi );
-    }
-    catch( std::runtime_error &e )
-    {
-        vsapi->setFilterError( ("FFT3DFilter: " + std::string(e.what())).c_str(), frame_ctx );
-    }
+    if( activation_reason == arInitial )
+        d->RequestFrame( n, frame_ctx, core, vsapi );
+    else if( activation_reason == arAllFramesReady )
+        return d->GetFrame( n, frame_ctx, core, vsapi );
 
     return nullptr;
 }
@@ -178,6 +171,8 @@ static void VS_CC createFFT3DFilter
         //fixme, should probably error out with 0 planes processed too
 
         //fixme, the cache has a weird structure that should be rewritten
+
+        //fixme, text printing is broken
 
         set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
         set_option_float( &beta,      1.0, "beta",       in, vsapi );
