@@ -23,24 +23,13 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <cassert>
 #include <fftw3.h>
 
 #include "VapourSynth.h"
 
 class FFT3DFilter
 {
-public:
-    struct FFTCacheRec {
-        fftwf_complex *fft = nullptr;
-        int what = -1;
-        void swap(FFTCacheRec &v) noexcept {
-            std::swap(fft, v.fft);
-            std::swap(what, v.what);
-        }
-        ~FFTCacheRec() {
-            fftwf_free(fft);
-        }
-    };
 private:
     /* parameters */
     float sigma;    /* noise level (std deviation) for high frequncies */
@@ -77,8 +66,7 @@ private:
 
     /* additional parameterss */
     std::unique_ptr<float[], decltype(&fftw_free)> in;
-    fftwf_complex *outcache[5];
-    fftwf_complex *outrez;
+    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outrez;
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> gridsample;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
@@ -142,7 +130,60 @@ private:
     bool  isPatternSet;
     float psigma;
 
-    std::vector<FFTCacheRec> fftcache;
+    struct FFTCacheRec {
+        int n = -1;
+        fftwf_complex *fft = nullptr;
+    };
+
+    class FFTCache {
+    private:
+        size_t nextevict;
+        size_t outsize;
+        std::vector<FFTCacheRec> cache;
+    public:
+        void GetCachedFrames(int from, int to, fftwf_complex **buffers, bool *valid) {
+            assert(from >= 0);
+            int total = (to - from) + 1;
+            assert(cache.size() >= total);
+            for (int i = 0; i < total; i++)
+                valid[i] = false;
+            for (const auto &iter : cache) {
+                if (iter.n >= from && iter.n <= to) {
+                    buffers[iter.n - from] = iter.fft;
+                    valid[iter.n - from] = true;
+                }
+            }
+            for (int i = 0; i < total; i++) {
+                if (!valid[i]) {
+                    while (cache[nextevict].n >= from && cache[nextevict].n <= to)
+                        nextevict = (nextevict + 1) % cache.size();
+                    auto &p = cache[nextevict];
+                    if (!p.fft)
+                        p.fft = fftwf_alloc_complex(outsize);
+                    p.n = i + from;
+                    buffers[i] = p.fft;
+                    nextevict = (nextevict + 1) % cache.size();
+                }
+            }
+        }
+
+        FFTCache() : nextevict(0) {
+        }
+
+        void Initialize(size_t maxsize, size_t outsize_) {
+            assert(cache.size() == 0);
+            assert(maxsize >= 7);
+            outsize = outsize_;
+            cache.resize(maxsize);
+        }
+
+        ~FFTCache() {
+            for (auto &iter : cache)
+                fftwf_free(iter.fft);
+        }
+    };
+
+    FFTCache fftcache;
 
     template<typename T>
     void InitOverlapPlane(float * __restrict inp0, const T * __restrict srcp0, int src_pitch, int planeBase);
@@ -171,9 +212,6 @@ public:
         float _dehalo, float _hr, float _ht, int _ncpu,
         VSVideoInfo _vi, VSNodeRef *node
     );
-
-    /* Destructor */
-    ~FFT3DFilter();
 };
 
 class FFT3DFilterMulti
