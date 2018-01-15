@@ -252,7 +252,7 @@ VS_EXTERNAL_API( void ) VapourSynthPluginInit
     register_func
     (
         "FFT3DFilter",
-        "clip:clip;sigma:float:opt;beta:float:opt;plane:int:opt;bw:int:opt;bh:int:opt;bt:int:opt;ow:int:opt;oh:int:opt;"
+        "clip:clip;sigma:float:opt;beta:float:opt;planes:int[]:opt;bw:int:opt;bh:int:opt;bt:int:opt;ow:int:opt;oh:int:opt;"
         "kratio:float:opt;sharpen:float:opt;scutoff:float:opt;svr:float:opt;smin:float:opt;smax:float:opt;"
         "measure:int:opt;interlaced:int:opt;wintype:int:opt;"
         "pframe:int:opt;px:int:opt;py:int:opt;pshow:int:opt;pcutoff:float:opt;pfactor:float:opt;"
