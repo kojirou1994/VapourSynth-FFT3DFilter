@@ -1338,9 +1338,7 @@ void FFT3DFilter::ApplyFilter
         /* make destination frame plane from current overlaped blocks */
         DecodeOverlapPlane( in.get(), norm, reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase, maxval );
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
-        int psigmaint = ((int)(10 * psigma)) / 10;
-        int psigmadec = (int)((psigma - psigmaint) * 10);
-        std::string messagebuf = "frame=" + std::to_string(n) + ", px=" + std::to_string(pxf) + ", py=" + std::to_string(pyf) + ", sigma=" + std::to_string(psigmaint) + "." + std::to_string(psigmadec);
+        std::string messagebuf = "frame=" + std::to_string(n) + ", px=" + std::to_string(pxf) + ", py=" + std::to_string(pyf) + ", sigma=" + std::to_string(psigma);
         DrawString( dst, 0, 0, messagebuf.c_str(), vsapi );
 
         return;
