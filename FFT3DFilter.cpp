@@ -1200,14 +1200,6 @@ static void Pattern2Dto3D( const float *pattern2d, int bh, int outwidth, int out
         pattern3d[i] = pattern2d[i] * mult;
     }
 }
-
-//-------------------------------------------------------------------------------------------
-static void FillArray(fftwf_complex **out, int fromframe, int toframe) {
-    /* sort ordered series, put existant ffts to proper places */
-    //for (int i = fromframe; i <= toframe; i++)
-    //    out[i - fromframe] = 
-}
-//-------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------
 template < typename T, int btcur >
 void FFT3DFilter::Wiener3D
