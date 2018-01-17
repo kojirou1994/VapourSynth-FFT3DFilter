@@ -230,6 +230,16 @@ static void VS_CC createFFT3DFilter
             closeFFT3DFilter,
             fmParallelRequests, 0, d, core
         );
+
+        if (pshow && pfactor > 0) {
+            vsapi->propSetData(out, "props", "FFT3DFilterPShowSigma", -1, paAppend);
+            VSMap *m = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.text", core), "FrameProps", out);
+            vsapi->clearMap(out);
+            VSNodeRef *nr = vsapi->propGetNode(m, "clip", 0, nullptr);
+            vsapi->freeMap(m);
+            vsapi->propSetNode(out, "clip", nr, paAppend);
+            vsapi->freeNode(nr);
+        }
     }
     catch (std::runtime_error &e) {
         vsapi->setError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());

@@ -29,8 +29,5 @@
     <ClInclude Include="..\FFT3DFilter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\info.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

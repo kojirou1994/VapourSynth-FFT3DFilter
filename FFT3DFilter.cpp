@@ -32,9 +32,8 @@
 #include <cstring>
 #include <algorithm>
 #include <cmath>
-#include <stdlib.h>
+#include <cstdlib>
 #include "FFT3DFilter.h"
-#include "info.h"
 
 /** declarations of filtering functions: **/
 /* C */
@@ -1338,9 +1337,7 @@ void FFT3DFilter::ApplyFilter
         /* make destination frame plane from current overlaped blocks */
         DecodeOverlapPlane( in.get(), norm, reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase, maxval );
         CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
-        std::string messagebuf = "frame=" + std::to_string(n) + ", px=" + std::to_string(pxf) + ", py=" + std::to_string(pyf) + ", sigma=" + std::to_string(psigma);
-        DrawString( dst, 0, 0, messagebuf.c_str(), vsapi );
-
+        vsapi->propSetData(vsapi->getFramePropsRW(dst), "FFT3DFilterPShowSigma", std::to_string(psigma).c_str(), -1, paAppend);
         return;
     }
 
