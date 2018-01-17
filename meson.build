@@ -1,6 +1,6 @@
 project('FFT3DFilter',
         'cpp',
-        meson_version : '>=0.44.0',
+        meson_version : '>=0.38.0',
         default_options : ['cpp_std=c++17', 'buildtype=release'],
         license : 'GPL2',
         version : '1')
