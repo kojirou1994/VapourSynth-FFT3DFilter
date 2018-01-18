@@ -1,7 +1,7 @@
 project('FFT3DFilter',
         'cpp',
         meson_version : '>=0.38.0',
-        default_options : ['cpp_std=c++17', 'buildtype=release'],
+        default_options : ['cpp_std=c++1z', 'buildtype=release'],
         license : 'GPL2',
         version : '1')
 
@@ -13,7 +13,6 @@ fftw = dependency('fftw3f_threads')
 
 # Sources
 src = [
-    'info.h',
     'FFT3DFilter.h',
     'FFT3DFilter.cpp',
     'fft3dfilter_c.cpp',
