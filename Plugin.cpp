@@ -170,8 +170,6 @@ static void VS_CC createFFT3DFilter
 
         //fixme, should probably error out with 0 planes processed too
 
-        //fixme, text printing is broken
-
         set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
         set_option_float( &beta,      1.0, "beta",       in, vsapi );
         const int64_t b = num_process == 1 ? 48 : 32;
@@ -245,6 +243,8 @@ static void VS_CC createFFT3DFilter
         vsapi->setError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());
     }
 }
+
+//fixme, make interlaced handling based on field based property and per frame
 
 VS_EXTERNAL_API( void ) VapourSynthPluginInit
 (
