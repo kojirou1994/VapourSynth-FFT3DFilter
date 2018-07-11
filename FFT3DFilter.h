@@ -26,7 +26,7 @@
 #include <cassert>
 #include <fftw3.h>
 
-#include "VapourSynth.h"
+#include <VapourSynth.h>
 
 class FFT3DFilter
 {
