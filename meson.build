@@ -1,29 +1,46 @@
-project('FFT3DFilter',
-        'cpp',
-        meson_version : '>=0.38.0',
-        default_options : ['cpp_std=c++1z', 'buildtype=release'],
-        license : 'GPL2',
-        version : '1')
+project('FFT3DFilter', 'cpp',
+  default_options : ['buildtype=release', 'b_ndebug=if-release', 'cpp_std=c++1z'],
+  license : 'GPL2',
+  meson_version : '>=0.38.0',
+  version : '1'
+)
 
+cc = meson.get_compiler('cpp')
 
-# Dependencies
-vapoursynth = dependency('vapoursynth')
-fftw = dependency('fftw3f_threads')
+sources = [
+  'FFT3DFilter.cpp',
+  'FFT3DFilter.h',
+  'fft3dfilter_c.cpp',
+  'Plugin.cpp'
+]
 
+vapoursynth_dep = dependency('vapoursynth')
 
-# Sources
-src = [
-    'FFT3DFilter.h',
-    'FFT3DFilter.cpp',
-    'fft3dfilter_c.cpp',
-    'Plugin.cpp']
+fftw3f_dep = dependency('fftw3f')
 
+deps = [vapoursynth_dep, fftw3f_dep]
 
-# Libs
-library(
-    'fft3dfilter',
-    src,
-    dependencies : [vapoursynth, fftw],
-    install_dir : join_paths(get_option('prefix'), get_option('libdir'), 'vapoursynth'),
-    install : true
+code = '''
+#include <fftw3.h>
+int main() {
+    fftwf_init_threads();
+    return 0;
+}
+'''
+if not cc.links(code, dependencies : fftw3f_dep)
+  deps += cc.find_library('fftw3f_threads')
+endif
+
+if cc.has_argument('-fvisibility=hidden')
+  add_project_arguments('-fvisibility=hidden', language : 'cpp')
+endif
+
+if host_machine.cpu_family().startswith('x86')
+  add_project_arguments('-mfpmath=sse', '-msse2', language : 'cpp')
+endif
+
+shared_module('fft3dfilter', sources,
+  dependencies : deps,
+  install : true,
+  install_dir : join_paths(vapoursynth_dep.get_pkgconfig_variable('libdir'), 'vapoursynth')
 )
