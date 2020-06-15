@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <stdexcept>
 #include "FFT3DFilter.h"
 
 /** declarations of filtering functions: **/
