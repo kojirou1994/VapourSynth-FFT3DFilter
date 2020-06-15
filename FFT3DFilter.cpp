@@ -193,12 +193,13 @@ kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), s
 measure(_measure), interlaced(_interlaced), wintype(_wintype),
 pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
-dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu),
-vi(_vi), node(_node), wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
-pattern2d(nullptr, nullptr), pattern3d(nullptr, nullptr), in(nullptr, nullptr),
-gridsample(nullptr, nullptr), outLast(nullptr, nullptr), covar(nullptr, nullptr),
-covarProcess(nullptr, nullptr), outrez(nullptr, nullptr), plan(nullptr, nullptr), planinv(nullptr, nullptr),
-plan1(nullptr, nullptr) {
+dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
+outrez(nullptr, nullptr), gridsample(nullptr, nullptr), plan(nullptr, nullptr),
+planinv(nullptr, nullptr), plan1(nullptr, nullptr),
+wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
+outLast(nullptr, nullptr), covar(nullptr, nullptr),
+covarProcess(nullptr, nullptr), pattern2d(nullptr, nullptr),
+pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     int istat = fftwf_init_threads();
     if (istat == 0)
         throw std::runtime_error{ "fftwf_init_threads() failed!" };
