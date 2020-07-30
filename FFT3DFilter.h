@@ -214,6 +214,110 @@ public:
     );
 };
 
+class FFT3DFilterTransformPlane {
+private:
+    /* parameters */
+    int plane;
+    int bw;       /* block width */
+    int bh;       /* block height */
+    int ow;       /* overlap width - v.0.9 */
+    int oh;       /* overlap height - v.0.9 */
+    bool interlaced;
+
+
+    // set by constructor
+    VSNodeRef *node;
+
+    std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
+    int coverwidth;
+    int coverheight;
+    int coverpitch;
+
+    int mirw; /* mirror width for padding */
+    int mirh; /* mirror height for padding */
+
+    VSVideoInfo dstvi;
+
+    int planeBase;
+
+    int nox, noy;
+    int outwidth;
+    int outpitch;
+    int outpitchelems; /* v.1.7 */
+
+    int outsize;
+
+
+    std::unique_ptr<float[]> wanxl; /* analysis */
+    std::unique_ptr<float[]> wanxr;
+    std::unique_ptr<float[]> wanyl;
+    std::unique_ptr<float[]> wanyr;
+
+    std::unique_ptr<float[], decltype(&fftw_free)> in;
+    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
+
+    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
+    template<typename T>
+    void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, int src_pitch, int planeBase);
+
+public:
+    FFT3DFilterTransformPlane(VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+};
+
+class FFT3DFilterInvTransform {
+private:
+    /* parameters */
+    int bw;       /* block width */
+    int bh;       /* block height */
+    int ow;       /* overlap width - v.0.9 */
+    int oh;       /* overlap height - v.0.9 */
+    bool interlaced;
+
+
+    // set by constructor
+    VSNodeRef *node;
+
+    std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
+    int coverwidth;
+    int coverheight;
+    int coverpitch;
+
+    int mirw; /* mirror width for padding */
+    int mirh; /* mirror height for padding */
+
+    VSVideoInfo dstvi;
+
+    int planeBase;
+
+    int nox, noy;
+    int outwidth;
+    int outpitch;
+    int outpitchelems; /* v.1.7 */
+
+    int outsize;
+
+    int maxval;
+
+    float norm; /* normalization factor */
+
+    std::unique_ptr<float[]> wsynxl;
+    std::unique_ptr<float[]> wsynxr;
+    std::unique_ptr<float[]> wsynyl;
+    std::unique_ptr<float[]> wsynyr;
+
+    std::unique_ptr<float[], decltype(&fftw_free)> in;
+    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
+
+    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
+    template<typename T>
+    void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__restrict dstp0, int dst_pitch, int planeBase, int maxval);
+
+public:
+    FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+};
+
 class FFT3DFilterMulti
 {
     FFT3DFilter *Clips[3];

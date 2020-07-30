@@ -164,6 +164,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\FFT3DFilter.cpp" />
+    <ClCompile Include="..\FFT3DFilterTransform.cpp" />
     <ClCompile Include="..\fft3dfilter_c.cpp" />
     <ClCompile Include="..\Plugin.cpp" />
   </ItemGroup>
