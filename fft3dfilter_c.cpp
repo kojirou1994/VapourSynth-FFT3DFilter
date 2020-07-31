@@ -161,7 +161,7 @@ void ApplyPattern2D_C( fftwf_complex *outcur, int outwidth, int outpitchelems, i
 //
 void ApplyWiener3D2_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta
 )
@@ -195,8 +195,8 @@ void ApplyWiener3D2_C
                 f3d1r *= WienerFactor; // apply filter on real  part
                 f3d1i *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 2 points
-                outprev[w][0] = (f3d0r + f3d1r)*0.5f; // get  real  part
-                outprev[w][1] = (f3d0i + f3d1i)*0.5f; // get imaginary part
+                outcur[w][0] = (f3d0r + f3d1r)*0.5f; // get  real  part
+                outcur[w][1] = (f3d0i + f3d1i)*0.5f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur  += outpitchelems;
@@ -209,7 +209,7 @@ void ApplyWiener3D2_C
 //
 void ApplyPattern3D2_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta
 )
@@ -243,8 +243,8 @@ void ApplyPattern3D2_C
                 f3d1r *= WienerFactor; // apply filter on real  part
                 f3d1i *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 2 points
-                outprev[w][0] = (f3d0r + f3d1r)*0.5f; // get  real  part
-                outprev[w][1] = (f3d0i + f3d1i)*0.5f; // get imaginary part
+                outcur[w][0] = (f3d0r + f3d1r)*0.5f; // get  real  part
+                outcur[w][1] = (f3d0i + f3d1i)*0.5f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur    += outpitchelems;
@@ -259,7 +259,7 @@ void ApplyPattern3D2_C
 //
 void ApplyWiener3D3_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta
 )
@@ -307,8 +307,8 @@ void ApplyWiener3D3_C
                 fnr *= WienerFactor; // apply filter on real  part
                 fni *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 3 points
-                outprev[w][0] = (fcr + fpr + fnr)*0.33333333333f; // get  real  part
-                outprev[w][1] = (fci + fpi + fni)*0.33333333333f; // get imaginary part
+                outcur[w][0] = (fcr + fpr + fnr)*0.33333333333f; // get  real  part
+                outcur[w][1] = (fci + fpi + fni)*0.33333333333f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur  += outpitchelems;
@@ -321,7 +321,7 @@ void ApplyWiener3D3_C
 //
 void ApplyPattern3D3_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     const float *pattern3d, float beta
 )
@@ -367,8 +367,8 @@ void ApplyPattern3D3_C
                 fnr *= WienerFactor; // apply filter on real  part
                 fni *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 3 points
-                outprev[w][0] = (fcr + fpr + fnr)*0.33333333333f; // get  real  part
-                outprev[w][1] = (fci + fpi + fni)*0.33333333333f; // get imaginary part
+                outcur[w][0] = (fcr + fpr + fnr)*0.33333333333f; // get  real  part
+                outcur[w][1] = (fci + fpi + fni)*0.33333333333f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur    += outpitchelems;
@@ -385,7 +385,7 @@ void ApplyPattern3D3_C
 //
 void ApplyWiener3D4_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta
 )
@@ -438,8 +438,8 @@ void ApplyWiener3D4_C
                 fni *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 4 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr)*0.25f; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni)*0.25f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr)*0.25f; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni)*0.25f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur   += outpitchelems;
@@ -453,7 +453,7 @@ void ApplyWiener3D4_C
 //
 void ApplyPattern3D4_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta
 )
@@ -506,8 +506,8 @@ void ApplyPattern3D4_C
                 fni *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 4 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr)*0.25f; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni)*0.25f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr)*0.25f; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni)*0.25f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur    += outpitchelems;
@@ -1001,7 +1001,7 @@ void ApplyWiener2D_degrid_C
 //
 void ApplyWiener3D2_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1040,8 +1040,8 @@ void ApplyWiener3D2_degrid_C
                 f3d1r *= WienerFactor; // apply filter on real  part
                 f3d1i *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 2 points
-                outprev[w][0] = (f3d0r + f3d1r + gridcorrection0_2)*0.5f ; // get  real  part
-                outprev[w][1] = (f3d0i + f3d1i + gridcorrection1_2)*0.5f ; // get imaginary part
+                outcur[w][0] = (f3d0r + f3d1r + gridcorrection0_2)*0.5f ; // get  real  part
+                outcur[w][1] = (f3d0i + f3d1i + gridcorrection1_2)*0.5f ; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1055,7 +1055,7 @@ void ApplyWiener3D2_degrid_C
 //
 void ApplyWiener3D3_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1107,8 +1107,8 @@ void ApplyWiener3D3_degrid_C
                 fnr *= WienerFactor; // apply filter on real  part
                 fni *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 3 points
-                outprev[w][0] = (fcr + fpr + fnr + gridcorrection0_3)*0.33333333333f; // get  real  part
-                outprev[w][1] = (fci + fpi + fni + gridcorrection1_3)*0.33333333333f; // get imaginary part
+                outcur[w][0] = (fcr + fpr + fnr + gridcorrection0_3)*0.33333333333f; // get  real  part
+                outcur[w][1] = (fci + fpi + fni + gridcorrection1_3)*0.33333333333f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1123,7 +1123,7 @@ void ApplyWiener3D3_degrid_C
 //
 void ApplyWiener3D4_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1182,8 +1182,8 @@ void ApplyWiener3D4_degrid_C
                 fni *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 4 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr + gridcorrection0_4)*0.25f ; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni + gridcorrection1_4)*0.25f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr + gridcorrection0_4)*0.25f ; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni + gridcorrection1_4)*0.25f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1245,7 +1245,7 @@ void ApplyPattern2D_degrid_C
 //
 void ApplyPattern3D2_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1283,8 +1283,8 @@ void ApplyPattern3D2_degrid_C
                 f3d1r *= WienerFactor; // apply filter on real  part
                 f3d1i *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 2 points
-                outprev[w][0] = (f3d0r + f3d1r + gridcorrection0_2)*0.5f; // get  real  part
-                outprev[w][1] = (f3d0i + f3d1i + gridcorrection1_2)*0.5f; // get imaginary part
+                outcur[w][0] = (f3d0r + f3d1r + gridcorrection0_2)*0.5f; // get  real  part
+                outcur[w][1] = (f3d0i + f3d1i + gridcorrection1_2)*0.5f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1301,7 +1301,7 @@ void ApplyPattern3D2_degrid_C
 //
 void ApplyPattern3D3_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1353,8 +1353,8 @@ void ApplyPattern3D3_degrid_C
                 fnr *= WienerFactor; // apply filter on real  part
                 fni *= WienerFactor; // apply filter on imaginary part
                 // reverse dft for 3 points
-                outprev[w][0] = (fcr + fpr + fnr + gridcorrection0_3)*0.33333333333f; // get  real  part
-                outprev[w][1] = (fci + fpi + fni + gridcorrection1_3)*0.33333333333f; // get imaginary part
+                outcur[w][0] = (fcr + fpr + fnr + gridcorrection0_3)*0.33333333333f; // get  real  part
+                outcur[w][1] = (fci + fpi + fni + gridcorrection1_3)*0.33333333333f; // get imaginary part
                 // Attention! return filtered "out" in "outprev" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1372,7 +1372,7 @@ void ApplyPattern3D3_degrid_C
 //
 void ApplyPattern3D4_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1431,8 +1431,8 @@ void ApplyPattern3D4_degrid_C
                 fni *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 4 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr + gridcorrection0_4)*0.25f; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni + gridcorrection1_4)*0.25f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr + gridcorrection0_4)*0.25f; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni + gridcorrection1_4)*0.25f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1450,7 +1450,7 @@ void ApplyPattern3D4_degrid_C
 //
 void ApplyPattern3D5_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1480,7 +1480,7 @@ void ApplyPattern3D5_degrid_C
                 float gridcorrection0_5 = gridfraction*gridsample[w][0]*5;
                 float gridcorrection1_5 = gridfraction*gridsample[w][1]*5;
                 // dft 3d (very short - 5 points)
-                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + + outcur[w][0];
+                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + + outcur[w][0]; // fixme, double plus?
                 float dif = (- outprev2[w][1] + outnext2[w][1])*sin72 + (outprev[w][1] - outnext[w][1])*sin144;
                 fp2r = sum + dif; // real prev2
                 fn2r = sum - dif; // real next2
@@ -1527,8 +1527,8 @@ void ApplyPattern3D5_degrid_C
                 fn2i *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 5 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr + fn2r + gridcorrection0_5)*0.2f ; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni + fn2i + gridcorrection1_5)*0.2f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr + fn2r + gridcorrection0_5)*0.2f ; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni + fn2i + gridcorrection1_5)*0.2f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1548,7 +1548,7 @@ void ApplyPattern3D5_degrid_C
 //
 void ApplyWiener3D5_degrid_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1641,8 +1641,8 @@ void ApplyWiener3D5_degrid_C
                 fn2i *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 5 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr + fn2r + gridcorrection0_5)*0.2f ; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni + fn2i + gridcorrection1_5)*0.2f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr + fn2r + gridcorrection0_5)*0.2f ; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni + fn2i + gridcorrection1_5)*0.2f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur     += outpitchelems;
@@ -1659,7 +1659,7 @@ void ApplyWiener3D5_degrid_C
 //
 void ApplyPattern3D5_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta
 )
@@ -1730,8 +1730,8 @@ void ApplyPattern3D5_C
                 fn2i *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 5 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr + fn2r)*0.2f ; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni + fn2i)*0.2f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr + fn2r)*0.2f ; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni + fn2i)*0.2f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur    += outpitchelems;
@@ -1749,7 +1749,7 @@ void ApplyPattern3D5_C
 //
 void ApplyWiener3D5_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta
 )
@@ -1820,8 +1820,8 @@ void ApplyWiener3D5_C
                 fn2i *= WienerFactor; // apply filter on imaginary part
 
                 // reverse dft for 5 points
-                outprev2[w][0] = (fp2r + fpr + fcr + fnr + fn2r)*0.2f ; // get  real  part
-                outprev2[w][1] = (fp2i + fpi + fci + fni + fn2i)*0.2f; // get imaginary part
+                outcur[w][0] = (fp2r + fpr + fcr + fnr + fn2r)*0.2f ; // get  real  part
+                outcur[w][1] = (fp2i + fpi + fci + fni + fn2i)*0.2f; // get imaginary part
                 // Attention! return filtered "out" in "outprev2" to preserve "out" for next step
             }
             outcur   += outpitchelems;

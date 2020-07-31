@@ -115,6 +115,44 @@ void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynx
     }
 }
 
+void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float *wsharpen) {
+    /* window for sharpen */
+    for (int j = 0; j < bh; j++) {
+        int dj = j;
+        if (j >= bh / 2)
+            dj = bh - j;
+        float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2)); /* v1.7 */
+        for (int i = 0; i < outwidth; i++) {
+            float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* distance_2 - v1.7 */
+            wsharpen[i + j * outpitchelems] = 1 - exp(-d2 / (2 * scutoff * scutoff));
+        }
+    }
+}
+
+void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float *wdehalo) {
+    /* window for dehalo - added in v1.9 */
+    float wmax = 0;
+    for (int j = 0; j < bh; j++) {
+        int dj = j;
+        if (j >= bh / 2)
+            dj = bh - j;
+        float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2));
+        for (int i = 0; i < outwidth; i++) {
+            float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* squared distance in frequency domain */
+            //float d1 = sqrt( d2 );
+            wdehalo[i + j * outpitchelems] = exp(-0.7f * d2 * hr * hr) - exp(-d2 * hr * hr); /* some window with max around 1/hr, small at low and high frequencies */
+            if (wdehalo[i + j * outpitchelems] > wmax)
+                wmax = wdehalo[i]; /* for normalization */
+        }
+    }
+
+    for (int j = 0; j < bh; j++) {
+        for (int i = 0; i < outwidth; i++) {
+            wdehalo[i + j * outpitchelems] /= wmax; /* normalize */
+        }
+    }
+}
+
 
 //
 template<typename T>
@@ -288,12 +326,12 @@ FFT3DFilterTransformPlane::FFT3DFilterTransformPlane(VSNodeRef *node, int plane_
     dstvi.width = outsize;
     dstvi.height = 1;
 
-    VSFrameRef *outrez = vsapi->newVideoFrame(dstvi.format, dstvi.width, dstvi.height, nullptr, core);
+    VSFrameRef *out = vsapi->newVideoFrame(dstvi.format, dstvi.width, dstvi.height, nullptr, core);
 
     plan = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_r2c(2, ndim, howmanyblocks,
-        in.get(), inembed, 1, idist, reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(outrez, 0)), onembed, 1, odist, planFlags), fftwf_destroy_plan);
+        in.get(), inembed, 1, idist, reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(out, 0)), onembed, 1, odist, planFlags), fftwf_destroy_plan);
 
-    vsapi->freeFrame(outrez);
+    vsapi->freeFrame(out);
 }
 
 const VSFrameRef *VS_CC FFT3DFilterTransformPlane::GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
@@ -307,6 +345,12 @@ const VSFrameRef *VS_CC FFT3DFilterTransformPlane::GetFrame(int n, int activatio
         if (fi->bytesPerSample == 1) {
             FramePlaneToCoverbuf<uint8_t>(data->plane, src, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, data->mirw, data->mirh, data->interlaced, vsapi);
             data->InitOverlapPlane<uint8_t>(data->in.get(), reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase);
+        } else if (fi->bytesPerSample == 2) {
+            FramePlaneToCoverbuf<uint16_t>(data->plane, src, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, data->mirw, data->mirh, data->interlaced, vsapi);
+            data->InitOverlapPlane<uint16_t>(data->in.get(), reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase);
+        } else if (fi->bytesPerSample == 4) {
+            FramePlaneToCoverbuf<float>(data->plane, src, reinterpret_cast<float *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, data->mirw, data->mirh, data->interlaced, vsapi);
+            data->InitOverlapPlane<float>(data->in.get(), reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->planeBase);
         }
 
         vsapi->freeFrame(src);
@@ -636,7 +680,7 @@ const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_
         const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
         const VSFormat *fi = vsapi->getFrameFormat(src);
 
-        // FFTW_PRESERVE_INPUT, is used so despite the cast the source pointer isn't used
+        // FFTW_PRESERVE_INPUT is used so despite the cast the source pointer isn't destroyed
         fftwf_execute_dft_c2r(data->planinv.get(), reinterpret_cast<fftwf_complex *>(const_cast<uint8_t *>(vsapi->getReadPtr(src, 0))), data->in.get());
         vsapi->freeFrame(src);
 
@@ -645,6 +689,12 @@ const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_
         if (fi->bytesPerSample == 1) {
             data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, data->maxval);
             CoverbufToFramePlane(reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
+        } else if (fi->bytesPerSample == 2) {
+            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, data->maxval);
+            CoverbufToFramePlane(reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
+        } else if (fi->bytesPerSample == 4) {
+            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->planeBase, data->maxval);
+            CoverbufToFramePlane(reinterpret_cast<float *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         }
 
         return dst;
