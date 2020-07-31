@@ -362,6 +362,27 @@ const VSFrameRef *VS_CC FFT3DFilterTransformPlane::GetFrame(int n, int activatio
     return nullptr;
 }
 
+const VSFrameRef *FFT3DFilterTransformPlane::GetGridSample(VSCore *core, const VSAPI *vsapi) {
+    const VSVideoInfo *vi = vsapi->getVideoInfo(node);
+    int bytesPerSample = vi->format->bytesPerSample;
+
+    if (bytesPerSample == 1) {
+        memset(coverbuf.get(), 255, coverheight * coverpitch);
+        InitOverlapPlane(in.get(), coverbuf.get(), coverpitch, 0);
+    } else if (bytesPerSample == 2) {
+        int maxval = (1 << vi->format->bitsPerSample) - 1;
+        fft3d_memset(reinterpret_cast<uint16_t *>(coverbuf.get()), static_cast<uint16_t>(maxval), coverheight * coverpitch / 2);
+        InitOverlapPlane(in.get(), reinterpret_cast<uint16_t *>(coverbuf.get()), coverpitch, 0);
+    } else if (bytesPerSample == 4) {
+        fft3d_memset(reinterpret_cast<float *>(coverbuf.get()), 1.f, coverheight * coverpitch / 4);
+        InitOverlapPlane(in.get(), reinterpret_cast<float *>(coverbuf.get()), coverpitch, 0);
+    }
+
+    VSFrameRef *dst = vsapi->newVideoFrame(dstvi.format, dstvi.width, dstvi.height, nullptr, core);
+    fftwf_execute_dft_r2c(plan.get(), in.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)));
+    return dst;
+}
+
 void VS_CC FFT3DFilterTransformPlane::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterTransformPlane *data = reinterpret_cast<FFT3DFilterTransformPlane *>(instance_data);
     vsapi->freeNode(data->node);

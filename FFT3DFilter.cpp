@@ -104,11 +104,7 @@ static void Sharpen_degrid( fftwf_complex *outcur, int outwidth, int outpitchele
     Sharpen_degrid_C( outcur, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, degrid, gridsample, dehalo, wdehalo, ht2n );
 }
 //-------------------------------------------------------------------------------------------
-template<typename T>
-static void fft3d_memset(T *dst, T val, size_t count) {
-    for (size_t i = 0; i < count; i++)
-        dst[i] = val;
-}
+
 //-------------------------------------------------------------------
 static void fill_complex( fftwf_complex *plane, int outsize, float realvalue, float imgvalue)
 {
@@ -160,14 +156,14 @@ FFT3DFilter::FFT3DFilter
     int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
-    VSVideoInfo _vi, VSNodeRef *_node, const VSAPI *vsapi
+    VSVideoInfo _vi, VSNodeRef *_node, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
 measure(_measure), interlaced(_interlaced), wintype(_wintype),
 pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
-outrez(nullptr, nullptr), gridsample(nullptr, nullptr), plan(nullptr, nullptr),
+plan(nullptr, nullptr),
 planinv(nullptr, nullptr),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
 outLast(nullptr, nullptr), covar(nullptr, nullptr),
@@ -216,9 +212,8 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
         covar = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
         covarProcess = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
     }
-    // FIXME, temp space that can be reallocated on demand
-    outrez = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
-    gridsample = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
+    // FIXME, temp space that can be reallocated on demand, is it needed at all?
+    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outrez = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
 
     int planFlags = measure ? FFTW_MEASURE: FFTW_ESTIMATE;
     int rank = 2; /* 2d */
@@ -315,37 +310,12 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
         isPatternSet = false; /* pattern must be estimated */
     }
 
-    // FIXME, this section is equivalent to calling the transform filter with a blank clip of max pixel value, so maybe do that? or just pass it in from the constructor
+    // FIXME, this section is equivalent to calling the transform filter with a blank clip of max pixel value,
+    // should probably have the upstream transform class passed or the transformed plane since they're the same but this is fine for now
 
-    /*
-    VSMap *bcargs = vsapi->createMap();
-    vsapi->propSetInt(bcargs, "length", 1, paAppend);
-    vsapi->propSetInt(bcargs, "width", coverwidth, paAppend);
-    vsapi->propSetInt(bcargs, "height", coverheight, paAppend);
-    vsapi->propSetInt(bcargs, "format", (vi.format->bytesPerSample == 1) ? pfGray8 : (vi.format->bytesPerSample == 2 ? pfGray16 : pfGrayS), paAppend);
-    vsapi->propSetFloat(bcargs, "color", vi.format->bytesPerSample == 4 ? 1.0 : maxval, paAppend);
-    VSMap *bcout = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.std"), "BlankClip", bcargs);
-    */
-
-    /* prepare window compensation array gridsample
-     * allocate large array for simplicity :)
-     * but use one block only for speed
-     * Attention: other block could be the same, but we do not calculate them! */
-     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan1 = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_r2c( rank, ndim, 1,
-                                     in.get(), inembed, istride, idist, outrez.get(), onembed, ostride, odist, planFlags), fftwf_destroy_plan); /* 1 block */
-
-    if (vi.format->bytesPerSample == 1) {
-        memset(coverbuf.get(), 255, coverheight * coverpitch);
-        InitOverlapPlane(in.get(), coverbuf.get(), coverpitch, 0);
-    } else if (vi.format->bytesPerSample == 2) {
-        fft3d_memset(reinterpret_cast<uint16_t *>(coverbuf.get()), static_cast<uint16_t>(maxval), coverheight * coverpitch / 2);
-        InitOverlapPlane(in.get(), reinterpret_cast<uint16_t *>(coverbuf.get()), coverpitch, 0);
-    } else if (vi.format->bytesPerSample == 4) {
-        fft3d_memset(reinterpret_cast<float *>(coverbuf.get()), 1.f, coverheight * coverpitch / 4);
-        InitOverlapPlane(in.get(), reinterpret_cast<float *>(coverbuf.get()), coverpitch, 0);
-    }
-    /* make FFT 2D */
-    fftwf_execute_dft_r2c( plan1.get(), in.get(), gridsample.get() );
+    FFT3DFilterTransformPlane *gridSampleSrc = new FFT3DFilterTransformPlane(node, plane, wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
+    gridsample = gridSampleSrc->GetGridSample(core, vsapi);
+    delete gridSampleSrc;
 }
 //-----------------------------------------------------------------------
 
@@ -550,7 +520,7 @@ void FFT3DFilter::ApplyFilter
     const VSAPI      *vsapi
 )
 {
-#if 0
+#if 1
     // FIXME, probably needs to be split into a separate filter or done on startup
     if( pfactor != 0 && isPatternSet == false && pshow == false ) /* get noise pattern */
     {
@@ -756,7 +726,7 @@ FFT3DFilterMulti::FFT3DFilterMulti
                     _measure, _interlaced, _wintype,
                     _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
                     _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu,
-                    vi, node);
+                    vi, node, core, vsapi);
         }
 
         for (int i = 2; i >= 0; i--) {

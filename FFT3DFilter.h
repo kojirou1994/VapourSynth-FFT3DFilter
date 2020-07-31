@@ -61,6 +61,12 @@ void ApplyPattern3D3_degrid_C(fftwf_complex *out, const fftwf_complex *outprev, 
 void ApplyPattern3D4_degrid_C(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
 void ApplyPattern3D5_degrid_C(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
 
+template<typename T>
+static void fft3d_memset(T *dst, T val, size_t count) {
+    for (size_t i = 0; i < count; i++)
+        dst[i] = val;
+}
+
 class FFT3DFilter
 {
 private:
@@ -99,8 +105,7 @@ private:
 
     /* additional parameterss */
     std::unique_ptr<float[], decltype(&fftw_free)> in;
-    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outrez;
-    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> gridsample;
+    const VSFrameRef *gridsample; // FIXME, free
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
     int nox, noy;
@@ -180,7 +185,7 @@ public:
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
         float _sigma2, float _sigma3, float _sigma4, float _degrid,
         float _dehalo, float _hr, float _ht, int _ncpu,
-        VSVideoInfo _vi, VSNodeRef *node, const VSAPI *vsapi
+        VSVideoInfo _vi, VSNodeRef *node, VSCore *core, const VSAPI *vsapi
     );
 };
 
@@ -233,6 +238,7 @@ private:
 
 public:
     FFT3DFilterTransformPlane(VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+    const VSFrameRef *GetGridSample(VSCore *core, const VSAPI *vsapi);
 };
 
 class FFT3DFilterInvTransform {
