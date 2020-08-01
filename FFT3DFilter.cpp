@@ -253,13 +253,11 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
 
     wsharpen = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
     wdehalo  = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
-    pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
 
     GetAnalysisWindow(wintype, ow, oh, wanxl.get(), wanxr.get(), wanyl.get(), wanyr.get());
     GetSynthesisWindow(wintype, ow, oh, wsynxl.get(), wsynxr.get(), wsynyl.get(), wsynyr.get());
     GetSharpenWindow(bw, bh, outwidth, outpitchelems, svr, scutoff, wsharpen.get());
     GetDeHaloWindow(bw, bh, outwidth, outpitchelems, hr, svr, wdehalo.get());
-    GetPatternWindow(bw, bh, outwidth, outpitchelems, pcutoff, pwin.get());
 
     btcurlast = -999; /* init as nonexistant */
 
@@ -294,12 +292,12 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     // FIXME, this section is equivalent to calling the transform filter with a blank clip of max pixel value,
     // should probably have the upstream transform class passed or the transformed plane since they're the same but this is fine for now
 
-    FFT3DFilterTransformPlane *gridSampleSrc = new FFT3DFilterTransformPlane(node, plane, wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
+    FFT3DFilterTransformPlane *gridSampleSrc = new FFT3DFilterTransformPlane(node, plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
     gridsample = gridSampleSrc->GetGridSample(core, vsapi);
     if (pfactor != 0 && isPatternSet == false && pshow == false) /* get noise pattern */ {
         const VSFrameRef *psrc = vsapi->getFrame(pframe, node, nullptr, 0);
         assert(psrc);
-        gridSampleSrc->GetNoisePattern(psrc, px, py, pattern2d.get(), psigma, degrid, pwin.get(), reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
+        gridSampleSrc->GetNoisePattern(psrc, px, py, pattern2d.get(), psigma, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
     } else if (true) {
 
     }
@@ -419,6 +417,14 @@ void FFT3DFilter::Wiener3D
 }
 
 template<typename T>
+void FFT3DFilter::ApplyPShow(int n, VSFrameRef *dst, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+    const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
+    const VSFrameRef *pshowsrc = vsapi->getFrameFilter(n, pshownode, frame_ctx);
+    // fixme, pass on pxf and pxy
+    PutPatternOnly(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf);
+}
+
+template<typename T>
 void FFT3DFilter::ApplyFilter
 (
     int               n,
@@ -428,10 +434,28 @@ void FFT3DFilter::ApplyFilter
     const VSAPI      *vsapi
 )
 {
-#if 1
+#if 0
     // FIXME, probably needs to be split into a separate filter or done on startup
     if( pfactor != 0 && pshow )
-    {   /* show noise pattern window */
+    {  
+        // 1. Forward transform (FFT3DFilterTransform), same as src clip
+        // 2. Findpattern, setpattern and such
+        // X. --no inverse transform, only pattern block (pxf, pyf), psigma and pattern2d carries over?-- if px and py is set then they're not calculated
+        // 3. Forward transform (FFT3DFilterTransform), but with analysis window set to all 1 (wan*) and adjusted planeBase
+        // 4. PutPatternOnly, adjusted planeBase has an effect?
+        // 5. Inverse transform FFT3DFilterInvTransform, but with synthesis windows set to all 1 (wsyn*) and adjusted planeBase
+
+        // dependencies =>
+        // lump 1 and 2 together as a simple FFT3DFilterTransform helper function?
+        // very linear, no shortcuts possible apart the clean source also having to be provided to step 3
+        // changed values in 3-5 are all constant
+        // setting wintype == 2 yields correct wan* constants, but not syn, simply add a wintype=9000 mode that secretly sets all values including planebase correctly?
+        // planebase communicated how?
+
+
+        // Group 1-X? How to carry over all esoteric values?
+        
+        /* show noise pattern window */
         /* put source bytes to float array of overlapped blocks */
         FramePlaneToCoverbuf( plane, src, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, mirw, mirh, interlaced, vsapi );
         InitOverlapPlane( in.get(), reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase );
@@ -448,6 +472,8 @@ void FFT3DFilter::ApplyFilter
             pxf = px; /* fixed bug in v1.6 */
             pyf = py;
         }
+
+        // FIXME, is pattern2d ever used? NOPE? But pass it on anyway since the destination space needs to be allocated
         SetPattern( outrez.get(), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, gridsample.get());
 
         // actually affects the next transform and inverse transform call
@@ -463,6 +489,7 @@ void FFT3DFilter::ApplyFilter
         }
 
         //FIXME, why is planebase assigned here? originally always assigned 128
+        // probably to get positie and negative part of the pattern
         planeBase = (vi.format->sampleType == stInteger) ? (1 << (vi.format->bitsPerSample - 1)) : 0;
 
         /* put source bytes to float array of overlapped blocks */

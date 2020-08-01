@@ -98,6 +98,15 @@ void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynx
             wsynyl[i] = wanyl * wanyl * wanyl;
             wsynyr[i] = wanyr * wanyr * wanyr;
         }
+    } else if (wintype==9000) {
+        for (int i = 0; i < ow; i++) {
+            wsynxl[i] = 1;
+            wsynxr[i] = 1;
+        }
+        for (int i = 0; i < oh; i++) {
+            wsynyl[i] = 1;
+            wsynyl[i] = 1;
+        }
     } else {
         /* define synthesis as rised cosine (Hanning) */
         for (int i = 0; i < ow; i++) {
@@ -290,7 +299,7 @@ static void CoverbufToFramePlane(const T * __restrict coverbuf, int coverwidth, 
 }
 //-----------------------------------------------------------------------
 
-FFT3DFilterTransformPlane::FFT3DFilterTransformPlane(VSNodeRef *node, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, VSCore *core, const VSAPI *vsapi) : plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced), in(nullptr, nullptr), plan(nullptr, nullptr) {
+FFT3DFilterTransformPlane::FFT3DFilterTransformPlane(VSNodeRef *node, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, VSCore *core, const VSAPI *vsapi) : plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced), in(nullptr, nullptr), plan(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -374,6 +383,20 @@ const VSFrameRef *VS_CC FFT3DFilterTransformPlane::GetFrame(int n, int activatio
     } else if (activation_reason == arAllFramesReady) {
         const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
         VSFrameRef *dst = data->GetFrame(src, core, vsapi);
+        vsapi->freeFrame(src);
+        return dst;
+    }
+
+    return nullptr;
+}
+
+const VSFrameRef *VS_CC FFT3DFilterTransformPlane::GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+    FFT3DFilterTransformPlane *data = reinterpret_cast<FFT3DFilterTransformPlane *>(*instance_data);
+    if (activation_reason == arInitial) {
+        vsapi->requestFrameFilter(n, data->node, frame_ctx);
+    } else if (activation_reason == arAllFramesReady) {
+        const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
+        VSFrameRef *dst = data->GetPShowInfo(src, core, vsapi);
         vsapi->freeFrame(src);
         return dst;
     }
@@ -477,12 +500,46 @@ static void SetPattern(const fftwf_complex *outcur, int outwidth, int outpitchel
     psigma = sqrt(sigmaSquared / (weight * bh * outwidth)); /* mean std deviation (sigma) */
 }
 
-void FFT3DFilterTransformPlane::GetNoisePattern(const VSFrameRef *src, int &px, int &py, float *pattern2d, float &psigma, float degrid, const float *pwin, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi) {
+void FFT3DFilterTransformPlane::GetNoisePattern(const VSFrameRef *src, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi) {
     VSFrameRef *dst = GetFrame(src, core, vsapi);
 
+    std::unique_ptr<float[]> pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
+    GetPatternWindow(bw, bh, outwidth, outpitchelems, pcutoff, pwin.get());
+
     if (px == 0 && py == 0) /* try find pattern block with minimal noise sigma */
-        FindPatternBlock(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, px, py, pwin, degrid, gridsample);
-    SetPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, px, py, pwin, pattern2d, psigma, degrid, gridsample);
+        FindPatternBlock(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), degrid, gridsample);
+    SetPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), pattern2d, psigma, degrid, gridsample);
+}
+
+VSFrameRef *FFT3DFilterTransformPlane::GetPShowInfo(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi) {
+    // accept a lot of extra recalculation and allocation when visualizing
+    // should be fast enough since it's all spatial anyway
+    // requires px, py, pcutoff, degrid
+
+    const VSFrameRef *transformed = GetFrame(src, core, vsapi);
+    const VSFrameRef *gridsample = GetGridSample(core, vsapi);
+
+    std::unique_ptr<float[]> pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
+    GetPatternWindow(bw, bh, outwidth, outpitchelems, pcutoff, pwin.get());
+
+    int pxf, pyf;
+    if (px == 0 && py == 0) { /* try find pattern block with minimal noise sigma */
+        FindPatternBlock(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(transformed, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
+    } else {
+        pxf = px;
+        pyf = py;
+    }
+
+    VSFrameRef *dst = vsapi->newVideoFrame(vsapi->getFormatPreset(pfGrayS, core), bh * outpitchelems, 1, nullptr, core);
+    float psigma; 
+    SetPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(transformed, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), reinterpret_cast<float *>(vsapi->getWritePtr(dst, 0)), psigma, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
+
+    vsapi->freeFrame(gridsample);
+    vsapi->freeFrame(transformed);
+
+    vsapi->propSetFloat(vsapi->getFramePropsRW(dst), "psigma", psigma, paAppend);
+
+    return dst;
 }
 
 void VS_CC FFT3DFilterTransformPlane::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
