@@ -107,8 +107,6 @@ private:
     /* additional parameterss */
     std::unique_ptr<float[], decltype(&fftw_free)> in;
     const VSFrameRef *gridsample; // FIXME, free
-    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
-    std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
     int nox, noy;
     int outwidth;
     int outpitch;
@@ -117,24 +115,8 @@ private:
     int outsize;
     int howmanyblocks;
 
-    int ndim[2];
-    int inembed[2];
-    int onembed[2];
-
-    std::unique_ptr<float[]> wanxl; /* analysis */
-    std::unique_ptr<float[]> wanxr;
-    std::unique_ptr<float[]> wanyl;
-    std::unique_ptr<float[]> wanyr;
-
-    std::unique_ptr<float[]> wsynxl; /* synthesis */
-    std::unique_ptr<float[]> wsynxr;
-    std::unique_ptr<float[]> wsynyl;
-    std::unique_ptr<float[]> wsynyr;
-
     std::unique_ptr<float[], decltype(&fftw_free)> wsharpen;
     std::unique_ptr<float[], decltype(&fftw_free)> wdehalo;
-
-    int btcurlast;  /* v1.7 */
 
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outLast;
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> covar;
@@ -147,11 +129,6 @@ private:
     float sigmaSquaredSharpenMaxNormed;
     float ht2n; /* halo threshold squared normed */
     float norm; /* normalization factor */
-
-    std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
-    int coverwidth;
-    int coverheight;
-    int coverpitch;
 
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
