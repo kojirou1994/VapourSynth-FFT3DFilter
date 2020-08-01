@@ -175,8 +175,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
 
     fftwf_make_planner_thread_safe();
 
-    int i, j;
-
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
@@ -255,11 +253,13 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
 
     wsharpen = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
     wdehalo  = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
+    pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
 
     GetAnalysisWindow(wintype, ow, oh, wanxl.get(), wanxr.get(), wanyl.get(), wanyr.get());
     GetSynthesisWindow(wintype, ow, oh, wsynxl.get(), wsynxr.get(), wsynyl.get(), wsynyr.get());
     GetSharpenWindow(bw, bh, outwidth, outpitchelems, svr, scutoff, wsharpen.get());
     GetDeHaloWindow(bw, bh, outwidth, outpitchelems, hr, svr, wdehalo.get());
+    GetPatternWindow(bw, bh, outwidth, outpitchelems, pcutoff, pwin.get());
 
     btcurlast = -999; /* init as nonexistant */
 
@@ -280,34 +280,15 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
         fill_complex( covarProcess.get(), outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
     }
 
-    pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
-
-    for( j = 0; j < bh; j++ )
-    {
-        float fh2;
-        if( j < bh / 2 )
-            fh2 = (j * 2.0f / bh) * (j * 2.0f / bh);
-        else
-            fh2 = ((bh - 1 - j) * 2.0f / bh) * ((bh - 1 - j) * 2.0f / bh);
-        for( i = 0; i < outwidth; i++ )
-        {
-            float fw2 = (i * 2.0f / bw) * (j * 2.0f / bw);
-            pwin[i + j * outpitchelems] = (fh2 + fw2) / (fh2 + fw2 + pcutoff * pcutoff);
-        }
-    }
-
     pattern2d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free); /* noise pattern window array */
     pattern3d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free); /* noise pattern window array */
 
+    bool isPatternSet = false;
     if( (sigma2 != sigma || sigma3 != sigma || sigma4 != sigma) && pfactor == 0 )
     {   /* we have different sigmas, so create pattern from sigmas */
         SigmasToPattern( sigma, sigma2, sigma3, sigma4, bh, outwidth, outpitchelems, norm, pattern2d.get());
         isPatternSet = true;
         pfactor = 1;
-    }
-    else
-    {
-        isPatternSet = false; /* pattern must be estimated */
     }
 
     // FIXME, this section is equivalent to calling the transform filter with a blank clip of max pixel value,
@@ -315,94 +296,20 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
 
     FFT3DFilterTransformPlane *gridSampleSrc = new FFT3DFilterTransformPlane(node, plane, wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
     gridsample = gridSampleSrc->GetGridSample(core, vsapi);
+    if (pfactor != 0 && isPatternSet == false && pshow == false) /* get noise pattern */ {
+        const VSFrameRef *psrc = vsapi->getFrame(pframe, node, nullptr, 0);
+        assert(psrc);
+        gridSampleSrc->GetNoisePattern(psrc, px, py, pattern2d.get(), psigma, degrid, pwin.get(), reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
+    } else if (true) {
+
+    }
+
+
     delete gridSampleSrc;
 }
 //-----------------------------------------------------------------------
 
-//-------------------------------------------------------------------------------------------
-static void FindPatternBlock( const fftwf_complex *outcur0, int outwidth, int outpitchelems, int bh, int nox, int noy, int &px, int &py, const float *pwin, float degrid, const fftwf_complex *gridsample )
-{
-    /* since v1.7 outwidth must be really an outpitchelems */
-    int h;
-    int w;
-    const fftwf_complex *outcur;
-    float psd;
-    float sigmaSquaredcur;
-    float sigmaSquared = 1e15f;
 
-    for( int by = 2; by < noy - 2; by++ )
-    {
-        for( int bx = 2; bx < nox - 2; bx++ )
-        {
-            outcur = outcur0 + nox * by * bh * outpitchelems + bx * bh * outpitchelems;
-            sigmaSquaredcur = 0;
-            float gcur = degrid * outcur[0][0] / gridsample[0][0]; /* grid (windowing) correction factor */
-            for( h = 0; h < bh; h++ )
-            {
-                for( w = 0; w < outwidth; w++ )
-                {
-                    float grid0 = gcur * gridsample[w][0];
-                    float grid1 = gcur * gridsample[w][1];
-                    float corrected0 = outcur[w][0] - grid0;
-                    float corrected1 = outcur[w][1] - grid1;
-                    psd = corrected0 * corrected0 + corrected1 * corrected1;
-                    sigmaSquaredcur += psd * pwin[w]; /* windowing */
-                }
-                outcur     += outpitchelems;
-                pwin       += outpitchelems;
-                gridsample += outpitchelems;
-            }
-            pwin -= outpitchelems * bh; /* restore */
-            if( sigmaSquaredcur < sigmaSquared )
-            {
-                px = bx;
-                py = by;
-                sigmaSquared = sigmaSquaredcur;
-            }
-        }
-    }
-}
-//-------------------------------------------------------------------------------------------
-static void SetPattern( const fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int nox, int noy, int px, int py, const float *pwin, float *pattern2d, float &psigma, float degrid, const fftwf_complex *gridsample )
-{
-    int h;
-    int w;
-    outcur += nox * py * bh * outpitchelems + px * bh * outpitchelems;
-    float psd;
-    float sigmaSquared = 0;
-    float weight = 0;
-
-    for( h = 0; h < bh; h++ )
-    {
-        for( w = 0; w < outwidth; w++ )
-        {
-            weight += pwin[w];
-        }
-        pwin += outpitchelems;
-    }
-    pwin -= outpitchelems * bh; /* restore */
-
-    float gcur = degrid * outcur[0][0] / gridsample[0][0]; /* grid (windowing) correction factor */
-
-    for( h = 0; h < bh; h++ )
-    {
-        for( w = 0; w < outwidth; w++ )
-        {
-            float grid0 = gcur * gridsample[w][0];
-            float grid1 = gcur * gridsample[w][1];
-            float corrected0 = outcur[w][0] - grid0;
-            float corrected1 = outcur[w][1] - grid1;
-            psd = corrected0 * corrected0 + corrected1 * corrected1;
-            pattern2d[w] = psd * pwin[w]; /* windowing */
-            sigmaSquared += pattern2d[w]; /* sum */
-        }
-        outcur     += outpitchelems;
-        pattern2d  += outpitchelems;
-        pwin       += outpitchelems;
-        gridsample += outpitchelems;
-    }
-    psigma = sqrt( sigmaSquared / (weight * bh * outwidth) ); /* mean std deviation (sigma) */
-}
 //-------------------------------------------------------------------------------------------
 static void PutPatternOnly( fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int nox, int noy, int px, int py )
 {
@@ -442,6 +349,7 @@ static void PutPatternOnly( fftwf_complex *outcur, int outwidth, int outpitchele
 //-------------------------------------------------------------------------------------------
 static void Pattern2Dto3D( const float *pattern2d, int bh, int outwidth, int outpitchelems, float mult, float *pattern3d )
 {
+    // FIXME, move to init if needed
     /* slow, but executed once only per clip */
     int size = bh * outpitchelems;
     for( int i = 0; i < size; i++ )
@@ -522,28 +430,15 @@ void FFT3DFilter::ApplyFilter
 {
 #if 1
     // FIXME, probably needs to be split into a separate filter or done on startup
-    if( pfactor != 0 && isPatternSet == false && pshow == false ) /* get noise pattern */
-    {
-        const VSFrameRef *psrc = vsapi->getFrameFilter( pframe, node, frame_ctx ); /* get noise pattern frame */
-
-        /* put source bytes to float array of overlapped blocks */
-        FramePlaneToCoverbuf( plane, psrc, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, mirw, mirh, interlaced, vsapi );
-        vsapi->freeFrame( psrc );
-        InitOverlapPlane( in.get(), reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase );
-        /* make FFT 2D */
-        fftwf_execute_dft_r2c( plan.get(), in.get(), outrez.get());
-        if( px == 0 && py == 0 ) /* try find pattern block with minimal noise sigma */
-            FindPatternBlock( outrez.get(), outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), degrid, gridsample.get());
-        SetPattern( outrez.get(), outwidth, outpitchelems, bh, nox, noy, px, py, pwin.get(), pattern2d.get(), psigma, degrid, gridsample.get());
-        isPatternSet = true;
-    }
-    else if( pfactor != 0 && pshow == true )
+    if( pfactor != 0 && pshow )
     {   /* show noise pattern window */
         /* put source bytes to float array of overlapped blocks */
         FramePlaneToCoverbuf( plane, src, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, mirw, mirh, interlaced, vsapi );
         InitOverlapPlane( in.get(), reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase );
         /* make FFT 2D */
         fftwf_execute_dft_r2c( plan.get(), in.get(), outrez.get());
+
+        // transformed src here
 
         int pxf, pyf;
         if( px == 0 && py == 0 ) /* try find pattern block with minimal noise sigma */
@@ -555,6 +450,8 @@ void FFT3DFilter::ApplyFilter
         }
         SetPattern( outrez.get(), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, gridsample.get());
 
+        // actually affects the next transform and inverse transform call
+        // how to pipeline this shitshow?
         /* change analysis and synthesis window to constant to show */
         for( int i = 0; i < ow; i++ )
         {
@@ -728,13 +625,6 @@ FFT3DFilterMulti::FFT3DFilterMulti
                     _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu,
                     vi, node, core, vsapi);
         }
-
-        for (int i = 2; i >= 0; i--) {
-            if (Clips[i]) {
-                isPatternSet = Clips[i]->getIsPatternSet();
-                break;
-            }
-        }
     } catch (std::runtime_error &) {
         Free(vsapi);
         throw;
@@ -756,9 +646,6 @@ void FFT3DFilterMulti::RequestFrame
     const VSAPI    *vsapi
 )
 {
-    if( pfactor != 0 && isPatternSet == false && pshow == false )
-        vsapi->requestFrameFilter( pframe, node, frame_ctx );
-
     int btcur = bt; /* bt used for current frame */
 
     if( (bt / 2 > n) || (bt - 1) / 2 > (vi.numFrames - 1 - n) )
@@ -809,13 +696,6 @@ VSFrameRef *FFT3DFilterMulti::GetFrame
                 Clips[i]->ApplyFilter<uint16_t>(n, dst, frame_ctx, core, vsapi);
             else if (vi.format->bytesPerSample == 4)
                 Clips[i]->ApplyFilter<float>(n, dst, frame_ctx, core, vsapi);
-        }
-    }
-
-    for (int i = 2; i >= 0; i--) {
-        if (Clips[i]) {
-            isPatternSet = Clips[i]->getIsPatternSet();
-            break;
         }
     }
 

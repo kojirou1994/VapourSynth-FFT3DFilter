@@ -32,6 +32,7 @@ void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, 
 void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynxr, float *wsynyl, float *wsynyr);
 void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float *wsharpen);
 void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float *wdehalo);
+void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, float pcutoff, float *pwin);
 
 /** declarations of filtering functions: **/
 /* C */
@@ -161,7 +162,6 @@ private:
     std::unique_ptr<float[]> pwin;
     std::unique_ptr<float[], decltype(&fftw_free)> pattern2d;
     std::unique_ptr<float[], decltype(&fftw_free)> pattern3d;
-    bool  isPatternSet;
     float psigma;
 
     template < int btcur >
@@ -173,8 +173,6 @@ public:
 
     template<typename T>
     void ApplyFilter( int n, VSFrameRef *dst, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
-
-    inline bool getIsPatternSet() { return isPatternSet; }
 
     /* Constructor */
     FFT3DFilter
@@ -239,6 +237,8 @@ private:
 public:
     FFT3DFilterTransformPlane(VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
     const VSFrameRef *GetGridSample(VSCore *core, const VSAPI *vsapi);
+    VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
+    void GetNoisePattern(const VSFrameRef *src, int &px, int &py, float *pattern2d, float &psigma, float degrid, const float *pwin, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi);
 };
 
 class FFT3DFilterInvTransform {
