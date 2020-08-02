@@ -74,51 +74,6 @@ static inline void set_option_float
         *opt = static_cast<float>(default_value);
 }
 
-static void VS_CC initFFT3DFilter
-(
-    VSMap       *in,
-    VSMap       *out,
-    void       **instance_data,
-    VSNode      *node,
-    VSCore      *core,
-    const VSAPI *vsapi
-)
-{
-    FFT3DFilterMulti *d = static_cast<FFT3DFilterMulti *>(*instance_data);
-    vsapi->setVideoInfo( &d->vi, 1, node );
-}
-
-static const VSFrameRef * VS_CC getFrameFFT3DFilter
-(
-    int             n,
-    int             activation_reason,
-    void          **instance_data,
-    void          **frame_data,
-    VSFrameContext *frame_ctx,
-    VSCore         *core,
-    const VSAPI    *vsapi
-)
-{
-    FFT3DFilterMulti *d = static_cast<FFT3DFilterMulti *>(*instance_data);
-
-    if( activation_reason == arInitial )
-        d->RequestFrame( n, frame_ctx, core, vsapi );
-    else if( activation_reason == arAllFramesReady )
-        return d->GetFrame( n, frame_ctx, core, vsapi );
-
-    return nullptr;
-}
-
-static void VS_CC closeFFT3DFilter
-(
-    void        *instance_data,
-    VSCore      *core,
-    const VSAPI *vsapi
-)
-{
-    static_cast<FFT3DFilterMulti *>(instance_data)->Free(vsapi);
-}
-
 static void VS_CC createFFT3DFilter
 (
     const VSMap *in,
@@ -212,24 +167,102 @@ static void VS_CC createFFT3DFilter
         if (beta < 1)
             throw std::runtime_error{ "beta must be not less 1.0" };
 
-        FFT3DFilterMulti *d = new FFT3DFilterMulti( sigma1, beta, process, bw, bh, bt, ow, oh,
-                                                    kratio, sharpen, scutoff, svr, smin, smax,
-                                                    measure, interlaced, wintype,
-                                                    pframe, px, py, pshow, pcutoff, pfactor,
-                                                    sigma2, sigma3, sigma4, degrid,
-                                                    dehalo, hr, ht, ncpu,
-                                                    in, vsapi );
+
+        VSNodeRef *node = vsapi->propGetNode(in, "clip", 0, nullptr);
+        const VSVideoInfo *vi = vsapi->getVideoInfo(node);
+        int plane = 0;
+        VSNodeRef *mainnode = nullptr;
+        VSMap *tmp = vsapi->createMap();
+
+
+        FFT3DFilterTransform *transform = new FFT3DFilterTransform(node, plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
+
+        vsapi->createFilter
+        (
+            in, tmp,
+            "FFT3DFilterTransform",
+            FFT3DFilterTransform::Init,
+            FFT3DFilterTransform::GetFrame,
+            FFT3DFilterTransform::Free,
+            fmParallelRequests, 0, transform, core
+        );
+
+        VSNodeRef *transformednode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+        vsapi->clearMap(tmp);
+
+        if (pshow && pfactor > 0) {
+            FFT3DFilterTransform *pshowtransform = new FFT3DFilterTransform(vsapi->cloneNodeRef(node), plane, 9000, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
+
+            vsapi->createFilter
+            (
+                in, tmp,
+                "FFT3DFilterTransformHelper",
+                FFT3DFilterTransform::Init,
+                FFT3DFilterTransform::GetPShowFrame,
+                FFT3DFilterTransform::Free,
+                fmParallelRequests, 0, pshowtransform, core
+            );
+
+            VSNodeRef *pshownode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+            vsapi->clearMap(tmp);
+
+            FFT3DFilter *mainFilter = new FFT3DFilter(transform, vi, sigma1, beta, plane, bw, bh, bt, ow, oh,
+                kratio, sharpen, scutoff, svr, smin, smax,
+                measure, interlaced, wintype,
+                pframe, px, py, pshow, pcutoff, pfactor,
+                sigma2, sigma3, sigma4, degrid, dehalo, hr, ht, ncpu,
+                transformednode, pshownode, core, vsapi);
+
+            vsapi->createFilter
+            (
+                in, tmp,
+                "FFT3DFilter",
+                FFT3DFilter::Init,
+                FFT3DFilter::GetPShowFrame,
+                FFT3DFilter::Free,
+                fmParallelRequests, 0, mainFilter, core
+            );
+
+            mainnode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+            vsapi->clearMap(tmp);
+
+        } else {
+            FFT3DFilter *mainFilter = new FFT3DFilter(transform, vi, sigma1, beta, plane, bw, bh, bt, ow, oh,
+                kratio, sharpen, scutoff, svr, smin, smax,
+                measure, interlaced, wintype,
+                pframe, px, py, pshow, pcutoff, pfactor,
+                sigma2, sigma3, sigma4, degrid, dehalo, hr, ht, ncpu,
+                transformednode, nullptr, core, vsapi);
+
+            vsapi->createFilter
+            (
+                in, tmp,
+                "FFT3DFilter",
+                FFT3DFilter::Init,
+                FFT3DFilter::GetFrame,
+                FFT3DFilter::Free,
+                fmParallelRequests, 0, mainFilter, core
+            );
+
+            mainnode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+            vsapi->clearMap(tmp);
+        }
+
+        vsapi->freeMap(tmp);
+
+        FFT3DFilterInvTransform *invtransform = new FFT3DFilterInvTransform(mainnode, vi, plane, wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
 
         vsapi->createFilter
         (
             in, out,
-            "FFT3DFilter",
-            initFFT3DFilter,
-            getFrameFFT3DFilter,
-            closeFFT3DFilter,
-            fmParallelRequests, 0, d, core
+            "FFT3DFilterInverseTransform",
+            FFT3DFilterInvTransform::Init,
+            FFT3DFilterInvTransform::GetFrame,
+            FFT3DFilterInvTransform::Free,
+            fmParallelRequests, 0, transform, core
         );
 
+        /*
         if (pshow && pfactor > 0) {
             vsapi->propSetData(out, "props", "FFT3DFilterPShowSigma", -1, paAppend);
             VSMap *m = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.text", core), "FrameProps", out);
@@ -239,6 +272,7 @@ static void VS_CC createFFT3DFilter
             vsapi->propSetNode(out, "clip", nr, paAppend);
             vsapi->freeNode(nr);
         }
+        */
     }
     catch (std::runtime_error &e) {
         vsapi->setError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());

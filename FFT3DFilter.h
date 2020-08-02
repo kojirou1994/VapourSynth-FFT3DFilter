@@ -68,6 +68,8 @@ static void fft3d_memset(T *dst, T val, size_t count) {
         dst[i] = val;
 }
 
+class FFT3DFilterTransform;
+
 class FFT3DFilter
 {
 private:
@@ -141,32 +143,36 @@ private:
     float psigma;
 
     template < int btcur >
-    void Wiener3D( int n, VSFrameRef *dst, VSFrameContext *frame_ctx, const VSAPI *vsapi );
+    void Wiener3D( int n, VSNodeRef *node, VSFrameRef *dst, VSFrameContext *frame_ctx, const VSAPI *vsapi );
 
 public:
-    VSVideoInfo vi;
+    const VSVideoInfo *vi;
     VSNodeRef  *node;
     VSNodeRef *pshownode;
 
-    template<typename T>
-    void ApplyFilter(int n, VSFrameRef *dst, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    template<typename T>
-    void ApplyPShow(int n, VSFrameRef *dst, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    VSFrameRef *ApplyFilter(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    VSFrameRef *ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
 
     /* Constructor */
     FFT3DFilter
     (
+        FFT3DFilterTransform *transform, const VSVideoInfo *vi,
         float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
         float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
         bool _measure, bool _interlaced, int _wintype,
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
         float _sigma2, float _sigma3, float _sigma4, float _degrid,
         float _dehalo, float _hr, float _ht, int _ncpu,
-        VSVideoInfo _vi, VSNodeRef *node, VSCore *core, const VSAPI *vsapi
+        VSNodeRef *node, VSNodeRef *pshownode, VSCore *core, const VSAPI *vsapi
     );
+
+    static void VS_CC Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi);
+    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrameRef *VS_CC GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };
 
-class FFT3DFilterTransformPlane {
+class FFT3DFilterTransform {
 private:
     /* parameters */
     int plane;
@@ -203,9 +209,6 @@ private:
 
     int outsize;
 
-
-
-
     std::unique_ptr<float[]> wanxl; /* analysis */
     std::unique_ptr<float[]> wanxr;
     std::unique_ptr<float[]> wanyl;
@@ -214,19 +217,19 @@ private:
     std::unique_ptr<float[], decltype(&fftw_free)> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> plan;
 
-    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    static const VSFrameRef *VS_CC GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
     template<typename T>
     void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, int src_pitch, int planeBase);
-
-
 public:
-    FFT3DFilterTransformPlane(VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+    FFT3DFilterTransform(VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
     const VSFrameRef *GetGridSample(VSCore *core, const VSAPI *vsapi);
     VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
     void GetNoisePattern(const VSFrameRef *src, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi);
     VSFrameRef *GetPShowInfo(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
+
+    static void VS_CC Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi);
+    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static const VSFrameRef *VS_CC GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };
 
 class FFT3DFilterInvTransform {
@@ -237,6 +240,7 @@ private:
     int ow;       /* overlap width - v.0.9 */
     int oh;       /* overlap height - v.0.9 */
     bool interlaced;
+    VSVideoInfo dstvi;
 
 
     // set by constructor
@@ -249,8 +253,6 @@ private:
 
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
-
-    VSVideoInfo dstvi;
 
     int planeBase;
 
@@ -273,43 +275,13 @@ private:
     std::unique_ptr<float[], decltype(&fftw_free)> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
 
-    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
     template<typename T>
     void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__restrict dstp0, int dst_pitch, int planeBase, int maxval);
 
 public:
     FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
-};
 
-class FFT3DFilterMulti
-{
-    FFT3DFilter *Clips[3];
-    int   bt;       /* block size  along time (mumber of frames), =0 for Kalman, >0 for Wiener */
-    int   pframe;   /* noise pattern frame number */
-    bool  pshow;    /* show noise pattern */
-    float pfactor;  /* noise pattern denoise strength */
-    bool  isPatternSet;
-
-public:
-    VSVideoInfo vi;
-    VSNodeRef  *node;
-
-    void RequestFrame( int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
-    VSFrameRef *GetFrame( int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi );
-
-    /* Constructor */
-    FFT3DFilterMulti
-    (
-        float _sigma, float _beta, bool _process[3], int _bw, int _bh, int _bt, int _ow, int _oh,
-        float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-        bool _measure, bool _interlaced, int _wintype,
-        int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
-        float _sigma2, float _sigma3, float _sigma4, float _degrid,
-        float _dehalo, float _hr, float _ht, int _ncpu,
-        const VSMap *in, const VSAPI *vsapi
-    );
-
-    /* Destructor */
-    void Free(const VSAPI *vsapi);
+    static void VS_CC Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi);
+    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };

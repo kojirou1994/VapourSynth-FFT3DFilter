@@ -49,7 +49,7 @@ static void ApplyPattern2D( fftwf_complex *outcur, int outwidth, int outpitchele
 }
 //-------------------------------------------------------------------------------------------
 template < int btcur >
-static void ApplyWiener3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta, float degrid, fftwf_complex *gridsample )
+static void ApplyWiener3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta, float degrid, const fftwf_complex *gridsample )
 {
     if( btcur == 5 ) ApplyWiener3D5_degrid_C( out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
     if( btcur == 4 ) ApplyWiener3D4_degrid_C( out, outprev2, outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
@@ -58,7 +58,7 @@ static void ApplyWiener3D_degrid(fftwf_complex *out, const fftwf_complex *outpre
 }
 //-------------------------------------------------------------------------------------------
 template < int btcur >
-static void ApplyPattern3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float *pattern3d, float beta, float degrid, fftwf_complex *gridsample )
+static void ApplyPattern3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample )
 {
     if( btcur == 5 ) ApplyPattern3D5_degrid_C( out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample );
     if( btcur == 4 ) ApplyPattern3D4_degrid_C( out, outprev2, outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample );
@@ -156,16 +156,49 @@ static void Pattern2Dto3D(const float *pattern2d, int bh, int outwidth, int outp
     }
 }
 
+void VS_CC FFT3DFilter::Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi) {
+    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
+    vsapi->setVideoInfo(vsapi->getVideoInfo(data->node), 1, node);
+}
+
+const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
+    if (activation_reason == arInitial) {
+        vsapi->requestFrameFilter(n, data->node, frame_ctx);
+    } else if (activation_reason == arAllFramesReady) {
+        return data->ApplyFilter(n, frame_ctx, core, vsapi);
+    }
+
+    return nullptr;
+}
+
+const VSFrameRef *VS_CC FFT3DFilter::GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
+    if (activation_reason == arInitial) {
+        vsapi->requestFrameFilter(n, data->node, frame_ctx);
+    } else if (activation_reason == arAllFramesReady) {
+        return data->ApplyPShow(n, frame_ctx, core, vsapi);
+    }
+
+    return nullptr;
+}
+
+void VS_CC FFT3DFilter::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
+    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(instance_data);
+    delete data;
+}
+
 //-------------------------------------------------------------------
 FFT3DFilter::FFT3DFilter
 (
+    FFT3DFilterTransform *transform, const VSVideoInfo *_vi,
     float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
     float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
     bool _measure, bool _interlaced, int _wintype,
     int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
-    VSVideoInfo _vi, VSNodeRef *_node, VSCore *core, const VSAPI *vsapi
+    VSNodeRef *_node, VSNodeRef *_pshownode, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
 measure(_measure), interlaced(_interlaced), wintype(_wintype),
@@ -175,7 +208,7 @@ dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
 outLast(nullptr, nullptr), covar(nullptr, nullptr),
 covarProcess(nullptr, nullptr), pattern2d(nullptr, nullptr),
-pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
+pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
     int istat = fftwf_init_threads();
     if (istat == 0)
         throw std::runtime_error{ "fftwf_init_threads() failed!" };
@@ -185,12 +218,15 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
-    maxval = (1 << vi.format->bitsPerSample) - 1;
+    maxval = (1 << vi->format->bitsPerSample) - 1;
 
-    planeBase = (plane && vi.format->sampleType == stInteger) ? (1 << (vi.format->bitsPerSample - 1)) : 0;
+    if (wintype == 9000)
+        planeBase = (vi->format->sampleType == stInteger) ? (1 << (vi->format->bitsPerSample - 1)) : 0;
+    else
+        planeBase = (plane && vi->format->sampleType == stInteger) ? (1 << (vi->format->bitsPerSample - 1)) : 0;
 
-    nox = ((vi.width >> (plane ? vi.format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
-    noy = ((vi.height >> (plane ? vi.format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
+    nox = ((vi->width >> (plane ? vi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
+    noy = ((vi->height >> (plane ? vi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
     /* padding by 1 block per side */
     nox += 2;
@@ -202,7 +238,7 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;    /* must be even for SSE - v1.7 */
-    outpitch = outpitchelems * vi.format->bytesPerSample;
+    outpitch = outpitchelems * vi->format->bytesPerSample;
 
     outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 
@@ -257,19 +293,16 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     // FIXME, this section is equivalent to calling the transform filter with a blank clip of max pixel value,
     // should probably have the upstream transform class passed or the transformed plane since they're the same but this is fine for now
 
-    FFT3DFilterTransformPlane *gridSampleSrc = new FFT3DFilterTransformPlane(node, plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
-    gridsample = gridSampleSrc->GetGridSample(core, vsapi);
+    gridsample = transform->GetGridSample(core, vsapi);
     if (pfactor != 0 && isPatternSet == false && pshow == false) /* get noise pattern */ {
         const VSFrameRef *psrc = vsapi->getFrame(pframe, node, nullptr, 0);
         assert(psrc);
         // FIXME, is psigma used? if not remove from class
-        gridSampleSrc->GetNoisePattern(psrc, px, py, pattern2d.get(), psigma, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
+        transform->GetNoisePattern(psrc, px, py, pattern2d.get(), psigma, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
     }
 
     if (bt > 1)
         Pattern2Dto3D(pattern2d.get(), bh, outwidth, outpitchelems, (float)bt, pattern3d.get());
-
-    delete gridSampleSrc;
 }
 //-----------------------------------------------------------------------
 
@@ -317,6 +350,7 @@ template < int btcur >
 void FFT3DFilter::Wiener3D
 (
     int               n,
+    VSNodeRef *node,
     VSFrameRef *dst,
     VSFrameContext   *frame_ctx,
     const VSAPI      *vsapi
@@ -328,7 +362,7 @@ void FFT3DFilter::Wiener3D
     const VSFrameRef *frefs[btcur] = {};
 
     for (int i = 0; i < btcur; i++) {
-        frefs[i] = vsapi->getFrameFilter(fromframe + i);
+        frefs[i] = vsapi->getFrameFilter(fromframe + i, node, frame_ctx);
         frames[i] = reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(frefs[i], 0));
     }
 
@@ -355,10 +389,10 @@ void FFT3DFilter::Wiener3D
     if( degrid != 0 )
     {
         if( pfactor != 0 )
-            ApplyPattern3D_degrid< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta, degrid, gridsample.get());
+            ApplyPattern3D_degrid< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
         else
-            ApplyWiener3D_degrid< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample.get());
-        Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
+            ApplyWiener3D_degrid< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
+        Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
     }
     else
     {
@@ -373,19 +407,20 @@ void FFT3DFilter::Wiener3D
         vsapi->freeFrame(frefs[i]);
 }
 
-template<typename T>
-void FFT3DFilter::ApplyPShow(int n, VSFrameRef *dst, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+VSFrameRef *FFT3DFilter::ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
     const VSFrameRef *pshowsrc = vsapi->getFrameFilter(n, pshownode, frame_ctx);
-    // fixme, pass on pxf and pxy
+    // fixme, pass on pxf and pxy, this is probably wrong and should be from the previous filter
+    int pxf = px;
+    int pyf = py;
+    VSFrameRef *dst = vsapi->newVideoFrame(vsapi->getFrameFormat(src), vsapi->getFrameWidth(src, 1), vsapi->getFrameHeight(src, 1), nullptr, core);
     PutPatternOnly(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf);
+    return dst;
 }
 
-template<typename T>
-void FFT3DFilter::ApplyFilter
+VSFrameRef *FFT3DFilter::ApplyFilter
 (
     int               n,
-    VSFrameRef       *dst,
     VSFrameContext   *frame_ctx,
     VSCore           *core,
     const VSAPI      *vsapi
@@ -468,14 +503,18 @@ void FFT3DFilter::ApplyFilter
     }
 #endif
 
+    const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
+    VSFrameRef *dst = vsapi->copyFrame(src, core);
+    vsapi->freeFrame(src);
+
     int btcur = bt; /* bt used for current frame */
 
-    if( (bt / 2 > n) || (bt - 1) / 2 > (vi.numFrames - 1 - n) )
+    if( (bt / 2 > n) || (bt - 1) / 2 > (vi->numFrames - 1 - n) )
     {
         btcur = 1; /* do 2D filter for first and last frames */
     }
 
-    const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
+    
 
     if( btcur > 0 ) /* Wiener */
     {
@@ -490,11 +529,11 @@ void FFT3DFilter::ApplyFilter
             {
                 if( pfactor != 0 )
                 {
-                    ApplyPattern2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta, degrid, gridsample.get());
-                    Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
+                    ApplyPattern2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
+                    Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
                 }
                 else
-                    ApplyWiener2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
+                    ApplyWiener2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
             }
             else
             {
@@ -509,26 +548,26 @@ void FFT3DFilter::ApplyFilter
         }
         else if( btcur == 2 ) /* 3D2 */
         {
-            Wiener3D< T, 2 >( n, dst, frame_ctx, vsapi );
+            Wiener3D< 2 >( n, node, dst, frame_ctx, vsapi );
         }
         else if( btcur == 3 ) /* 3D3 */
         {
-            Wiener3D< T, 3 >( n, dst, frame_ctx, vsapi );
+            Wiener3D< 3 >( n, node, dst, frame_ctx, vsapi );
         }
         else if( btcur == 4 ) /* 3D4 */
         {
-            Wiener3D< T, 4 >( n, dst, frame_ctx, vsapi );
+            Wiener3D< 4 >( n, node, dst, frame_ctx, vsapi );
         }
         else if( btcur == 5 ) /* 3D5 */
         {
-            Wiener3D< T, 5 >( n, dst, frame_ctx, vsapi );
+            Wiener3D< 5 >( n, node, dst, frame_ctx, vsapi );
         }
     }
     else if( bt == 0 ) /* Kalman filter */
     {
         /* get power spectral density (abs quadrat) for every block and apply filter */
         if( n == 0 )
-            return;
+            return dst;
 
         if( pfactor != 0 )
             ApplyKalmanPattern(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio );
@@ -540,124 +579,18 @@ void FFT3DFilter::ApplyFilter
             reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)),
                 outsize * sizeof(fftwf_complex));
         if( degrid != 0 )
-            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
+            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
         else
             Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
     }
     else if( bt == -1 ) /* sharpen only */
     {
         if( degrid != 0 )
-            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, gridsample.get(), dehalo, wdehalo.get(), ht2n );
+            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
         else
             Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
     }
 
-    /* As we now are finished processing the image. */
-}
-
-//-------------------------------------------------------------------
-FFT3DFilterMulti::FFT3DFilterMulti
-(
-    float _sigma, float _beta, bool _process[3], int _bw, int _bh, int _bt, int _ow, int _oh,
-    float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-    bool _measure, bool _interlaced, int _wintype,
-    int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
-    float _sigma2, float _sigma3, float _sigma4, float _degrid,
-    float _dehalo, float _hr, float _ht, int _ncpu,
-    const VSMap *in, const VSAPI *vsapi
-) : Clips(),
-    bt( _bt ), pframe( _pframe ), pshow( _pshow ), pfactor( _pfactor )
-{
-    node =  vsapi->propGetNode( in, "clip", 0, 0 );
-    vi   = *vsapi->getVideoInfo( node );
-
-    try {
-        if ((vi.format->bitsPerSample > 16 && vi.format->sampleType == stInteger) || (vi.format->bitsPerSample != 32 && vi.format->sampleType == stFloat))
-            throw std::runtime_error{ "only 8-16 bit integer and 32 bit float are supported" };
-
-        for (int i = 0; i < vi.format->numPlanes; i++) {
-            if (_process[i])
-                Clips[i] = new FFT3DFilter(_sigma, _beta, i, _bw, _bh, _bt, _ow, _oh,
-                    _kratio, _sharpen, _scutoff, _svr, _smin, _smax,
-                    _measure, _interlaced, _wintype,
-                    _pframe, _px, _py, _pshow, _pcutoff, _pfactor,
-                    _sigma2, _sigma3, _sigma4, _degrid, _dehalo, _hr, _ht, _ncpu,
-                    vi, node, core, vsapi);
-        }
-    } catch (std::runtime_error &) {
-        Free(vsapi);
-        throw;
-    }
-}
-
-void FFT3DFilterMulti::Free(const VSAPI *vsapi) {
-    for (int i = 0; i < 3; i++)
-        delete Clips[i];
-    vsapi->freeNode(node);
-    delete this;
-}
-
-void FFT3DFilterMulti::RequestFrame
-(
-    int             n,
-    VSFrameContext *frame_ctx,
-    VSCore         *core,
-    const VSAPI    *vsapi
-)
-{
-    int btcur = bt; /* bt used for current frame */
-
-    if( (bt / 2 > n) || (bt - 1) / 2 > (vi.numFrames - 1 - n) )
-    {
-        btcur = 1; /* do 2D filter for first and last frames */
-    }
-
-    if( btcur > 0 )
-    {
-        for( int i = n - btcur / 2; i <= n + (btcur - 1) / 2; ++i )
-            vsapi->requestFrameFilter( i, node, frame_ctx );
-    }
-    else
-        vsapi->requestFrameFilter( n, node, frame_ctx );
-}
-
-VSFrameRef *FFT3DFilterMulti::GetFrame
-(
-    int             n,
-    VSFrameContext *frame_ctx,
-    VSCore         *core,
-    const VSAPI    *vsapi
-)
-{
-    /* Request frame 'n' from the source clip. */
-    const VSFrameRef *src = vsapi->getFrameFilter( n, node, frame_ctx );
-
-    VSFrameRef *dst = nullptr;
-    if( pfactor != 0 && pshow == true )
-        dst = vsapi->copyFrame( src, core );
-    else if( bt == 0 && n == 0 )
-        /* Kalman filter does nothing for the first frame. */
-        dst = vsapi->copyFrame(src, core);
-    else
-    {
-        int planes[3] = { 0, 1, 2 };
-        const VSFrameRef *srcf[3] = { Clips[0] ? nullptr : src, Clips[1] ? nullptr : src, Clips[2] ? nullptr : src };
-        dst = vsapi->newVideoFrame2(vsapi->getFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), srcf, planes, src, core);
-    }
-
-    // fixme, copyframe?
-    
-    for (int i = 0; i < 3; i++) {
-        if (Clips[i]) {
-            if (vi.format->bytesPerSample == 1)
-                Clips[i]->ApplyFilter<uint8_t>(n, dst, frame_ctx, core, vsapi);
-            else if (vi.format->bytesPerSample == 2)
-                Clips[i]->ApplyFilter<uint16_t>(n, dst, frame_ctx, core, vsapi);
-            else if (vi.format->bytesPerSample == 4)
-                Clips[i]->ApplyFilter<float>(n, dst, frame_ctx, core, vsapi);
-        }
-    }
-
-    vsapi->freeFrame( src );
     return dst;
 }
+
