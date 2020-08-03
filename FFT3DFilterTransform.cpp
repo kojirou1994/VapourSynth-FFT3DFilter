@@ -840,7 +840,8 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
     norm = 1.0f / (bw * bh); /* do not forget set FFT normalization factor */
 
-    int planFlags = (measure ? FFTW_MEASURE : FFTW_ESTIMATE) | FFTW_PRESERVE_INPUT; // needed since a read only frame is the source
+    // FFTW_PRESERVE_INPUT would be preferred but it's not implemented due to the infinite greatness of FFTW
+    int planFlags = (measure ? FFTW_MEASURE : FFTW_ESTIMATE) | FFTW_DESTROY_INPUT; // needed since a read only frame is the source
     int ndim[2] = { bh, bw };
     int idist = bw * bh;
     int odist = outpitchelems * bh;
@@ -854,10 +855,11 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     dstvi.format = vsapi->registerFormat(cmGray, srcvi->format->sampleType, srcvi->format->bitsPerSample, 0, 0, core);
 
     // fixme, use the fftw allocation function?
-    VSFrameRef *src = vsapi->newVideoFrame(srcvi->format, srcvi->width, srcvi->height, nullptr, core);
+    const VSVideoInfo *inputvi = vsapi->getVideoInfo(node);
+    VSFrameRef *src = vsapi->newVideoFrame(inputvi->format, inputvi->width, inputvi->height, nullptr, core);
 
     planinv = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_c2r(2, ndim, howmanyblocks,
-        reinterpret_cast<fftwf_complex *>(const_cast<uint8_t *>(vsapi->getReadPtr(src, 0))), onembed, 1, odist, in.get(), inembed, 1, idist, planFlags), fftwf_destroy_plan);
+        reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(src, 0)), onembed, 1, odist, in.get(), inembed, 1, idist, planFlags), fftwf_destroy_plan);
 
     vsapi->freeFrame(src);
 }
@@ -873,11 +875,14 @@ const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
         const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
+        VSFrameRef *modifiableSrc = vsapi->copyFrame(src, core);
+        vsapi->freeFrame(src);
+
         const VSFormat *fi = vsapi->getFrameFormat(src);
 
-        // FFTW_PRESERVE_INPUT is used so despite the cast the source pointer isn't destroyed
-        fftwf_execute_dft_c2r(data->planinv.get(), reinterpret_cast<fftwf_complex *>(const_cast<uint8_t *>(vsapi->getReadPtr(src, 0))), data->in.get());
-        vsapi->freeFrame(src);
+        fftwf_execute_dft_c2r(data->planinv.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(modifiableSrc, 0)), data->in.get());
+
+        vsapi->freeFrame(modifiableSrc);
 
         VSFrameRef *dst = vsapi->newVideoFrame(data->dstvi.format, data->dstvi.width, data->dstvi.height, nullptr, core);
 
