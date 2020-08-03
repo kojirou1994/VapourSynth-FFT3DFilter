@@ -885,13 +885,13 @@ const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_
         VSFrameRef *dst = vsapi->newVideoFrame(data->dstvi.format, data->dstvi.width, data->dstvi.height, nullptr, core);
 
         if (data->dstvi.format->bytesPerSample == 1) {
-            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, data->maxval);
+            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, 255);
             CoverbufToFramePlane(reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         } else if (data->dstvi.format->bytesPerSample == 2) {
-            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, data->maxval);
+            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, (1 << data->dstvi.format->bitsPerSample) - 1);
             CoverbufToFramePlane(reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         } else if (data->dstvi.format->bytesPerSample == 4) {
-            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->planeBase, data->maxval);
+            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->planeBase, 1);
             CoverbufToFramePlane(reinterpret_cast<float *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         }
 
