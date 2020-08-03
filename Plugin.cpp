@@ -115,22 +115,25 @@ static void VS_CC createFFT3DFilter
     float   ht;
     int64_t ncpu;
     try {
+        int istat = fftwf_init_threads();
+        if (istat == 0)
+            throw std::runtime_error{ "fftwf_init_threads() failed!" };
+
+        fftwf_make_planner_thread_safe();
+
         getPlanesArg(in, process, vsapi);
 
         int num_process = 0;
         for (int i = 0; i < 3; i++)
             if (process[i])
                 num_process++;
-        //fixme, completely derp, doesn't know how many planes so the default depends on whether or not planes argument was specified
-        //bug carried over from original
 
         //fixme, should probably error out with 0 planes processed too
 
         set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
         set_option_float( &beta,      1.0, "beta",       in, vsapi );
-        const int64_t b = num_process == 1 ? 48 : 32;
-        set_option_int64( &bw,          b, "bw",         in, vsapi );
-        set_option_int64( &bh,          b, "bh",         in, vsapi );
+        set_option_int64( &bw,          32, "bw",         in, vsapi );
+        set_option_int64( &bh,          32, "bh",         in, vsapi );
         set_option_int64( &bt,          3, "bt",         in, vsapi );
         set_option_int64( &ow,       bw/3, "ow",         in, vsapi );
         set_option_int64( &oh,       bh/3, "oh",         in, vsapi );
@@ -216,7 +219,7 @@ static void VS_CC createFFT3DFilter
             vsapi->createFilter
             (
                 in, tmp,
-                "FFT3DFilter",
+                "FFT3DFilterMain",
                 FFT3DFilter::Init,
                 FFT3DFilter::GetPShowFrame,
                 FFT3DFilter::Free,
@@ -237,7 +240,7 @@ static void VS_CC createFFT3DFilter
             vsapi->createFilter
             (
                 in, tmp,
-                "FFT3DFilter",
+                "FFT3DFilterMain",
                 FFT3DFilter::Init,
                 FFT3DFilter::GetFrame,
                 FFT3DFilter::Free,
@@ -259,7 +262,7 @@ static void VS_CC createFFT3DFilter
             FFT3DFilterInvTransform::Init,
             FFT3DFilterInvTransform::GetFrame,
             FFT3DFilterInvTransform::Free,
-            fmParallelRequests, 0, transform, core
+            fmParallelRequests, 0, invtransform, core
         );
 
         /*

@@ -185,6 +185,9 @@ const VSFrameRef *VS_CC FFT3DFilter::GetPShowFrame(int n, int activation_reason,
 
 void VS_CC FFT3DFilter::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(instance_data);
+    vsapi->freeNode(data->node);
+    vsapi->freeNode(data->pshownode);
+    vsapi->freeFrame(data->gridsample);
     delete data;
 }
 
@@ -209,11 +212,6 @@ wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
 outLast(nullptr, nullptr), covar(nullptr, nullptr),
 covarProcess(nullptr, nullptr), pattern2d(nullptr, nullptr),
 pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
-    int istat = fftwf_init_threads();
-    if (istat == 0)
-        throw std::runtime_error{ "fftwf_init_threads() failed!" };
-
-    fftwf_make_planner_thread_safe();
 
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */

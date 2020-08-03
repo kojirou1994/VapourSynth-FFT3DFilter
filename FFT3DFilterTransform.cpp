@@ -344,9 +344,9 @@ FFT3DFilterTransform::FFT3DFilterTransform(VSNodeRef *node_, int plane_, int win
     int onembed[2] = { bh, outpitchelems };
     int howmanyblocks = nox * noy;
 
-    dstvi = {};
+    dstvi = *srcvi;
     dstvi.format = vsapi->getFormatPreset(pfGrayS, core);
-    dstvi.width = outsize;
+    dstvi.width = outsize * 2; // 2 floats per complex number
     dstvi.height = 1;
 
     VSFrameRef *out = vsapi->newVideoFrame(dstvi.format, dstvi.width, dstvi.height, nullptr, core);
@@ -548,6 +548,7 @@ VSFrameRef *FFT3DFilterTransform::GetPShowInfo(const VSFrameRef *src, VSCore *co
 
 void VS_CC FFT3DFilterTransform::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterTransform *data = reinterpret_cast<FFT3DFilterTransform *>(instance_data);
+    vsapi->freeNode(data->node);
     delete data;
 }
 
@@ -801,7 +802,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
 //
 //-----------------------------------------------------------------------------------------
 
-FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, VSCore *core, const VSAPI *vsapi) : bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced), in(nullptr, nullptr), planinv(nullptr, nullptr) {
+FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, VSCore *core, const VSAPI *vsapi) : node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced), in(nullptr, nullptr), planinv(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -899,6 +900,7 @@ const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_
 
 void VS_CC FFT3DFilterInvTransform::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterInvTransform *data = reinterpret_cast<FFT3DFilterInvTransform *>(instance_data);
+    vsapi->freeNode(data->node);
     delete data;
 }
 
