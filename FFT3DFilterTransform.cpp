@@ -505,8 +505,10 @@ static void SetPattern(const fftwf_complex *outcur, int outwidth, int outpitchel
     psigma = sqrt(sigmaSquared / (weight * bh * outwidth)); /* mean std deviation (sigma) */
 }
 
-void FFT3DFilterTransform::GetNoisePattern(const VSFrameRef *src, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi) {
+void FFT3DFilterTransform::GetNoisePattern(int n, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi) {
+    const VSFrameRef *src = vsapi->getFrame(n, node, nullptr, 0);
     VSFrameRef *dst = GetFrame(src, core, vsapi);
+    vsapi->freeFrame(src);
 
     std::unique_ptr<float[]> pwin = std::unique_ptr<float[]>(new float[bh * outpitchelems]); /* pattern window array */
     GetPatternWindow(bw, bh, outwidth, outpitchelems, pcutoff, pwin.get());
@@ -535,13 +537,17 @@ VSFrameRef *FFT3DFilterTransform::GetPShowInfo(const VSFrameRef *src, VSCore *co
         pyf = py;
     }
 
-    float psigma; 
+    float psigma;
     std::unique_ptr<float[], decltype(&fftw_free)> pattern2d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free); //FIXME, dummy allocation due to 
     SetPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(transformed, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
 
     vsapi->freeFrame(gridsample);
 
-    vsapi->propSetFloat(vsapi->getFramePropsRW(transformed), "psigma", psigma, paAppend);
+    VSMap *props = vsapi->getFramePropsRW(transformed);
+
+    vsapi->propSetInt(props, "pxf", pxf, paAppend);
+    vsapi->propSetInt(props, "pyf", pyf, paAppend);
+    vsapi->propSetFloat(props, "psigma", psigma, paAppend);
 
     return transformed;
 }

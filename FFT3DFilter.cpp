@@ -186,6 +186,7 @@ const VSFrameRef *VS_CC FFT3DFilter::GetPShowFrame(int n, int activation_reason,
     FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
     if (activation_reason == arInitial) {
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
+        vsapi->requestFrameFilter(n, data->pshownode, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
         return data->ApplyPShow(n, frame_ctx, core, vsapi);
     }
@@ -297,11 +298,11 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
     }
 
     gridsample = transform->GetGridSample(core, vsapi);
+
     if (pfactor != 0 && isPatternSet == false && pshow == false) /* get noise pattern */ {
-        const VSFrameRef *psrc = vsapi->getFrame(pframe, node, nullptr, 0);
-        assert(psrc);
         // FIXME, is psigma used? if not remove from class
-        transform->GetNoisePattern(psrc, px, py, pattern2d.get(), psigma, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
+        // modifies px, py, pattern2d and psigma
+        transform->GetNoisePattern(pframe, px, py, pattern2d.get(), psigma, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
     }
 
     if (bt > 1)
@@ -398,8 +399,11 @@ VSFrameRef *FFT3DFilter::ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *co
     const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
     const VSFrameRef *pshowsrc = vsapi->getFrameFilter(n, pshownode, frame_ctx);
     // fixme, pass on pxf and pxy and psigma, this is probably wrong and should be from the previous filter
-    int pxf = px;
-    int pyf = py;
+    const VSMap *props = vsapi->getFramePropsRO(pshowsrc);
+
+    int pxf = vsapi->propGetInt(props, "pxf", 0, nullptr);
+    int pyf = vsapi->propGetInt(props, "pyf", 0, nullptr);
+
     vsapi->freeFrame(pshowsrc);
 
     VSFrameRef *dst = vsapi->copyFrame(src, core);
