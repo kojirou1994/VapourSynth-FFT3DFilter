@@ -164,7 +164,18 @@ void VS_CC FFT3DFilter::Init(VSMap *in, VSMap *out, void **instance_data, VSNode
 const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
     if (activation_reason == arInitial) {
-        vsapi->requestFrameFilter(n, data->node, frame_ctx);
+        int btcur = data->bt; /* bt used for current frame */
+        if ((data->bt / 2 > n) || (data->bt - 1) / 2 > (data->vi->numFrames - 1 - n))
+            btcur = 1; /* do 2D filter for first and last frames */
+
+        if (btcur <= 1 ) {
+            vsapi->requestFrameFilter(n, data->node, frame_ctx);
+        } else {
+            int fromframe = n - data->bt / 2;
+            for (int i = 0; i < data->bt; i++) {
+                vsapi->requestFrameFilter(fromframe + i, data->node, frame_ctx);
+            }
+        }
     } else if (activation_reason == arAllFramesReady) {
         return data->ApplyFilter(n, frame_ctx, core, vsapi);
     }
