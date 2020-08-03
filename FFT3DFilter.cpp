@@ -148,7 +148,6 @@ static void SigmasToPattern( float sigma, float sigma2, float sigma3, float sigm
 }
 
 static void Pattern2Dto3D(const float *pattern2d, int bh, int outwidth, int outpitchelems, float mult, float *pattern3d) {
-    // FIXME, move to init if needed
     /* slow, but executed once only per clip */
     int size = bh * outpitchelems;
     for (int i = 0; i < size; i++) { /* get 3D pattern */
@@ -257,8 +256,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
         covar = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
         covarProcess = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
     }
-    // FIXME, temp space that can be reallocated on demand, is it needed at all?
-    std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outrez = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
 
     howmanyblocks = nox * noy;
 
@@ -298,9 +295,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
         isPatternSet = true;
         pfactor = 1;
     }
-
-    // FIXME, this section is equivalent to calling the transform filter with a blank clip of max pixel value,
-    // should probably have the upstream transform class passed or the transformed plane since they're the same but this is fine for now
 
     gridsample = transform->GetGridSample(core, vsapi);
     if (pfactor != 0 && isPatternSet == false && pshow == false) /* get noise pattern */ {
@@ -375,25 +369,9 @@ void FFT3DFilter::Wiener3D
         frames[i] = reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(frefs[i], 0));
     }
 
-    // dst is used as scratch space, before outp[0] was used but now it's outp[2], inject src frame somewhere to compensate
-
-    /*
-    for (int i = 0; i <= toframe - fromframe; i++) {
-        // FIXME, equivalent to i == 0?
-        if (i + fromframe == n - btcur / 2) {
-            // oldest frame will be used as scratch space so use a copy of it instead
-            // originally a complicated scheme that assumed perfectly linear access was used to actually consume the cached frame but that's too complicated,
-            // and possibly not that great when out of order access can happen due to multithreading
-            memcpy(outrez.get(),
-                frames[i],
-                outsize * sizeof(fftwf_complex));
-        }
-    }*/
-
     // unwrap the frames to outp again, because this step was in the original code and rewriting things nicer is effort
     // also clamp the index unlike the original so no reads happen beyond the array bounds...
     const fftwf_complex *outp[5] = { frames[std::max(0, outcenter - 2)], frames[std::max(0, outcenter - 1)], nullptr, frames[std::min(outcenter + 1, btcur - 1)], frames[std::min(outcenter + 2, btcur - 1)] };
-    //outp[2 - btcur / 2] = outrez.get();
 
     if( degrid != 0 )
     {
@@ -419,11 +397,15 @@ void FFT3DFilter::Wiener3D
 VSFrameRef *FFT3DFilter::ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
     const VSFrameRef *pshowsrc = vsapi->getFrameFilter(n, pshownode, frame_ctx);
-    // fixme, pass on pxf and pxy, this is probably wrong and should be from the previous filter
+    // fixme, pass on pxf and pxy and psigma, this is probably wrong and should be from the previous filter
     int pxf = px;
     int pyf = py;
-    VSFrameRef *dst = vsapi->newVideoFrame(vsapi->getFrameFormat(src), vsapi->getFrameWidth(src, 1), vsapi->getFrameHeight(src, 1), nullptr, core);
+    vsapi->freeFrame(pshowsrc);
+
+    VSFrameRef *dst = vsapi->copyFrame(src, core);
+    vsapi->freeFrame(src);
     PutPatternOnly(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf);
+
     return dst;
 }
 
@@ -523,7 +505,6 @@ VSFrameRef *FFT3DFilter::ApplyFilter
         btcur = 1; /* do 2D filter for first and last frames */
     }
 
-    
 
     if( btcur > 0 ) /* Wiener */
     {
@@ -533,7 +514,6 @@ VSFrameRef *FFT3DFilter::ApplyFilter
 
         if( btcur == 1 ) /* 2D */
         {
-            // FIXME, copy src=>dst for this to work
             if( degrid != 0 )
             {
                 if( pfactor != 0 )

@@ -108,7 +108,7 @@ private:
 
     /* additional parameterss */
     std::unique_ptr<float[], decltype(&fftw_free)> in;
-    const VSFrameRef *gridsample; // FIXME, free
+    const VSFrameRef *gridsample;
     int nox, noy;
     int outwidth;
     int outpitch;
