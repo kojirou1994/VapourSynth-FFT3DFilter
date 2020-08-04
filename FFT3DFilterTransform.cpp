@@ -105,7 +105,7 @@ void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynx
         }
         for (int i = 0; i < oh; i++) {
             wsynyl[i] = 1;
-            wsynyl[i] = 1;
+            wsynyr[i] = 1;
         }
     } else {
         /* define synthesis as rised cosine (Hanning) */
