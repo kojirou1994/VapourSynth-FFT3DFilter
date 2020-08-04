@@ -208,14 +208,14 @@ FFT3DFilter::FFT3DFilter
     FFT3DFilterTransform *transform, const VSVideoInfo *_vi,
     float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
     float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-    bool _measure, bool _interlaced, int _wintype,
+    bool _measure, bool _interlaced,
     int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
     VSNodeRef *_node, VSNodeRef *_pshownode, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
-measure(_measure), interlaced(_interlaced), wintype(_wintype),
+measure(_measure), interlaced(_interlaced),
 pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
@@ -228,11 +228,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
     maxval = (1 << vi->format->bitsPerSample) - 1;
-
-    if (wintype == 9000)
-        planeBase = (vi->format->sampleType == stInteger) ? (1 << (vi->format->bitsPerSample - 1)) : 0;
-    else
-        planeBase = (plane && vi->format->sampleType == stInteger) ? (1 << (vi->format->bitsPerSample - 1)) : 0;
 
     nox = ((vi->width >> (plane ? vi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((vi->height >> (plane ? vi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);

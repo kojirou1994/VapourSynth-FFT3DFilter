@@ -213,7 +213,7 @@ static void VS_CC createFFT3DFilter
 
             FFT3DFilter *mainFilter = new FFT3DFilter(transform, vi, sigma1, beta, plane, bw, bh, bt, ow, oh,
                 kratio, sharpen, scutoff, svr, smin, smax,
-                measure, interlaced, wintype,
+                measure, interlaced,
                 pframe, px, py, pshow, pcutoff, pfactor,
                 sigma2, sigma3, sigma4, degrid, dehalo, hr, ht, ncpu,
                 transformednode, pshownode, core, vsapi);
@@ -234,7 +234,7 @@ static void VS_CC createFFT3DFilter
         } else {
             FFT3DFilter *mainFilter = new FFT3DFilter(transform, vi, sigma1, beta, plane, bw, bh, bt, ow, oh,
                 kratio, sharpen, scutoff, svr, smin, smax,
-                measure, interlaced, wintype,
+                measure, interlaced,
                 pframe, px, py, pshow, pcutoff, pfactor,
                 sigma2, sigma3, sigma4, degrid, dehalo, hr, ht, ncpu,
                 transformednode, nullptr, core, vsapi);

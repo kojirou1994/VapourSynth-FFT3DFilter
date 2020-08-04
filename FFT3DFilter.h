@@ -90,7 +90,6 @@ private:
     float smax;     /* maximum limit for sharpen (prevent oversharping) - v.1.1 */
     bool  measure;  /* fft optimal method */
     bool  interlaced;
-    int   wintype;  /* window type */
     int   pframe;   /* noise pattern frame number */
     int   px;       /* noise pattern window x-position */
     int   py;       /* noise pattern window y-position */
@@ -135,7 +134,6 @@ private:
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
 
-    int planeBase; /* color base value (0 for luma, 128 for chroma) */
     int maxval;
 
     std::unique_ptr<float[], decltype(&fftw_free)> pattern2d;
@@ -159,7 +157,7 @@ public:
         FFT3DFilterTransform *transform, const VSVideoInfo *vi,
         float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
         float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-        bool _measure, bool _interlaced, int _wintype,
+        bool _measure, bool _interlaced,
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
         float _sigma2, float _sigma3, float _sigma4, float _degrid,
         float _dehalo, float _hr, float _ht, int _ncpu,
