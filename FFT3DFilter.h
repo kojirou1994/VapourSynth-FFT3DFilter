@@ -88,8 +88,6 @@ private:
     float svr;      /* sharpen vertical ratio (0 to 1 and above) - v.1.0 */
     float smin;     /* minimum limit for sharpen (prevent noise amplifying) - v.1.1 */
     float smax;     /* maximum limit for sharpen (prevent oversharping) - v.1.1 */
-    bool  measure;  /* fft optimal method */
-    bool  interlaced;
     int   pframe;   /* noise pattern frame number */
     int   px;       /* noise pattern window x-position */
     int   py;       /* noise pattern window y-position */
@@ -146,10 +144,8 @@ private:
 public:
     const VSVideoInfo *vi;
     VSNodeRef  *node;
-    VSNodeRef *pshownode;
 
     VSFrameRef *ApplyFilter(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    VSFrameRef *ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
 
     /* Constructor */
     FFT3DFilter
@@ -157,16 +153,14 @@ public:
         FFT3DFilterTransform *transform, const VSVideoInfo *vi,
         float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
         float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-        bool _measure, bool _interlaced,
         int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
         float _sigma2, float _sigma3, float _sigma4, float _degrid,
         float _dehalo, float _hr, float _ht, int _ncpu,
-        VSNodeRef *node, VSNodeRef *pshownode, VSCore *core, const VSAPI *vsapi
+        VSNodeRef *node, VSCore *core, const VSAPI *vsapi
     );
 
     static void VS_CC Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi);
     static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
-    static const VSFrameRef *VS_CC GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
     static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
 };
 
@@ -278,6 +272,31 @@ private:
 
 public:
     FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+
+    static void VS_CC Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi);
+    static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
+};
+
+class FFT3DFilterPShow {
+private:
+    /* parameters */
+    int plane;
+    int bw;       /* block width */
+    int bh;       /* block height */
+    int ow;       /* overlap width - v.0.9 */
+    int oh;       /* overlap height - v.0.9 */
+    bool interlaced;
+
+    // set by constructor
+    VSNodeRef *node;
+    VSNodeRef *pshownode;
+
+    const VSVideoInfo *vi;
+
+public:
+    FFT3DFilterPShow(VSNodeRef *node, VSNodeRef *pshownode, int plane, int bw, int bh, int ow, int oh, bool interlaced, VSCore *core, const VSAPI *vsapi);
+    VSFrameRef *GetFrame(const VSFrameRef *src, const VSFrameRef *pshowsrc, VSCore *core, const VSAPI *vsapi);
 
     static void VS_CC Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi);
     static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);

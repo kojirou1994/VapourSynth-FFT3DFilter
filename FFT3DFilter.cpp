@@ -182,22 +182,9 @@ const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void
     return nullptr;
 }
 
-const VSFrameRef *VS_CC FFT3DFilter::GetPShowFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
-    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
-    if (activation_reason == arInitial) {
-        vsapi->requestFrameFilter(n, data->node, frame_ctx);
-        vsapi->requestFrameFilter(n, data->pshownode, frame_ctx);
-    } else if (activation_reason == arAllFramesReady) {
-        return data->ApplyPShow(n, frame_ctx, core, vsapi);
-    }
-
-    return nullptr;
-}
-
 void VS_CC FFT3DFilter::Free(void *instance_data, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(instance_data);
     vsapi->freeNode(data->node);
-    vsapi->freeNode(data->pshownode);
     vsapi->freeFrame(data->gridsample);
     delete data;
 }
@@ -208,21 +195,19 @@ FFT3DFilter::FFT3DFilter
     FFT3DFilterTransform *transform, const VSVideoInfo *_vi,
     float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
     float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-    bool _measure, bool _interlaced,
     int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
-    VSNodeRef *_node, VSNodeRef *_pshownode, VSCore *core, const VSAPI *vsapi
+    VSNodeRef *_node, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
-measure(_measure), interlaced(_interlaced),
 pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
 outLast(nullptr, nullptr), covar(nullptr, nullptr),
 covarProcess(nullptr, nullptr), pattern2d(nullptr, nullptr),
-pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
+pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
 
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
@@ -303,44 +288,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
     if (bt > 1)
         Pattern2Dto3D(pattern2d.get(), bh, outwidth, outpitchelems, (float)bt, pattern3d.get());
 }
-//-----------------------------------------------------------------------
-
-
-//-------------------------------------------------------------------------------------------
-static void PutPatternOnly( fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int nox, int noy, int px, int py )
-{
-    int pblock = py * nox + px;
-    int blocks = nox * noy;
-
-    for( int block = 0; block < pblock; block++ )
-    {
-        for( int h = 0; h < bh; h++ )
-        {
-            for(int w = 0; w < outwidth; w++ )
-            {
-                outcur[w][0] = 0;
-                outcur[w][1] = 0;
-            }
-            outcur += outpitchelems;
-        }
-    }
-
-    outcur += bh * outpitchelems;
-
-    for(int block = pblock + 1; block < blocks; block++ )
-    {
-        for(int h = 0; h < bh; h++ )
-        {
-            for(int w = 0; w < outwidth; w++ )
-            {
-                outcur[w][0] = 0;
-                outcur[w][1] = 0;
-            }
-            outcur += outpitchelems;
-        }
-    }
-}
-//-------------------------------------------------------------------------------------------
 
 //-------------------------------------------------------------------------------------------
 template < int btcur >
@@ -388,25 +335,6 @@ void FFT3DFilter::Wiener3D
         vsapi->freeFrame(frefs[i]);
 }
 
-VSFrameRef *FFT3DFilter::ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
-    const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
-    const VSFrameRef *pshowsrc = vsapi->getFrameFilter(n, pshownode, frame_ctx);
-    // fixme, pass on pxf and pxy and psigma, this is probably wrong and should be from the previous filter
-    const VSMap *props = vsapi->getFramePropsRO(pshowsrc);
-
-    int pxf = vsapi->propGetInt(props, "pxf", 0, nullptr);
-    int pyf = vsapi->propGetInt(props, "pyf", 0, nullptr);
-    float psigma = vsapi->propGetFloat(props, "psigma", 0, nullptr);
-
-    vsapi->freeFrame(pshowsrc);
-
-    VSFrameRef *dst = vsapi->copyFrame(src, core);
-    vsapi->freeFrame(src);
-    PutPatternOnly(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf);
-
-    return dst;
-}
-
 VSFrameRef *FFT3DFilter::ApplyFilter
 (
     int               n,
@@ -415,83 +343,6 @@ VSFrameRef *FFT3DFilter::ApplyFilter
     const VSAPI      *vsapi
 )
 {
-#if 0
-    // FIXME, probably needs to be split into a separate filter or done on startup
-    if( pfactor != 0 && pshow )
-    {  
-        // 1. Forward transform (FFT3DFilterTransform), same as src clip
-        // 2. Findpattern, setpattern and such
-        // X. --no inverse transform, only pattern block (pxf, pyf), psigma and pattern2d carries over?-- if px and py is set then they're not calculated
-        // 3. Forward transform (FFT3DFilterTransform), but with analysis window set to all 1 (wan*) and adjusted planeBase
-        // 4. PutPatternOnly, adjusted planeBase has an effect?
-        // 5. Inverse transform FFT3DFilterInvTransform, but with synthesis windows set to all 1 (wsyn*) and adjusted planeBase
-
-        // dependencies =>
-        // lump 1 and 2 together as a simple FFT3DFilterTransform helper function?
-        // very linear, no shortcuts possible apart the clean source also having to be provided to step 3
-        // changed values in 3-5 are all constant
-        // setting wintype == 2 yields correct wan* constants, but not syn, simply add a wintype=9000 mode that secretly sets all values including planebase correctly?
-        // planebase communicated how?
-
-
-        // Group 1-X? How to carry over all esoteric values?
-        
-        /* show noise pattern window */
-        /* put source bytes to float array of overlapped blocks */
-        FramePlaneToCoverbuf( plane, src, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, mirw, mirh, interlaced, vsapi );
-        InitOverlapPlane( in.get(), reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase );
-        /* make FFT 2D */
-        fftwf_execute_dft_r2c( plan.get(), in.get(), outrez.get());
-
-        // transformed src here
-
-        int pxf, pyf;
-        if( px == 0 && py == 0 ) /* try find pattern block with minimal noise sigma */
-            FindPatternBlock( outrez.get(), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), degrid, gridsample.get() );
-        else
-        {
-            pxf = px; /* fixed bug in v1.6 */
-            pyf = py;
-        }
-
-        // FIXME, is pattern2d ever used? NOPE? But pass it on anyway since the destination space needs to be allocated
-        SetPattern( outrez.get(), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, gridsample.get());
-
-        // actually affects the next transform and inverse transform call
-        // how to pipeline this shitshow?
-        /* change analysis and synthesis window to constant to show */
-        for( int i = 0; i < ow; i++ )
-        {
-            wanxl[i] = 1;    wanxr[i] = 1;    wsynxl[i] = 1;    wsynxr[i] = 1;
-        }
-        for( int i = 0; i < oh; i++ )
-        {
-            wanyl[i] = 1;    wanyr[i] = 1;    wsynyl[i] = 1;    wsynyr[i] = 1;
-        }
-
-        //FIXME, why is planebase assigned here? originally always assigned 128
-        // probably to get positie and negative part of the pattern
-        planeBase = (vi.format->sampleType == stInteger) ? (1 << (vi.format->bitsPerSample - 1)) : 0;
-
-        /* put source bytes to float array of overlapped blocks */
-        /* cur frame */
-        FramePlaneToCoverbuf( plane, src, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, mirw, mirh, interlaced, vsapi );
-        InitOverlapPlane( in.get(), reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase );
-        /* make FFT 2D */
-        fftwf_execute_dft_r2c( plan.get(), in.get(), outrez.get());
-
-        PutPatternOnly( outrez.get(), outwidth, outpitchelems, bh, nox, noy, pxf, pyf );
-        /* do inverse 2D FFT, get filtered 'in' array */
-        fftwf_execute_dft_c2r( planinv.get(), outrez.get(), in.get());
-
-        /* make destination frame plane from current overlaped blocks */
-        DecodeOverlapPlane( in.get(), norm, reinterpret_cast<T *>(coverbuf.get()), coverpitch, planeBase, maxval );
-        CoverbufToFramePlane( plane, reinterpret_cast<T *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi );
-        vsapi->propSetData(vsapi->getFramePropsRW(dst), "FFT3DFilterPShowSigma", std::to_string(psigma).c_str(), -1, paAppend);
-        return;
-    }
-#endif
-
     const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
     VSFrameRef *dst = vsapi->copyFrame(src, core);
     vsapi->freeFrame(src);
