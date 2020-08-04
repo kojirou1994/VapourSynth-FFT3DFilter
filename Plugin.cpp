@@ -238,11 +238,17 @@ static void VS_CC createFFT3DFilter
                         fmParallelRequests, 0, transform, core
                     );
 
-                    // FIXME, INSERT CACHE IF bt > 1
+                    VSNodeRef *transformednode = nullptr;
 
-                    VSNodeRef *transformednode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+                    if (bt > 1) {
+                        VSMap *tmp2 = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.std", core), "Cache", tmp);
+                        transformednode = vsapi->propGetNode(tmp2, "clip", 0, nullptr);
+                        vsapi->freeMap(tmp2);
+                    } else {
+                        transformednode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+                    }
+
                     vsapi->clearMap(tmp);
-
 
                     FFT3DFilter *mainFilter = new FFT3DFilter(transform, vi, sigma1, beta, plane, bw, bh, bt, ow, oh,
                         kratio, sharpen, scutoff, svr, smin, smax,
