@@ -91,7 +91,6 @@ private:
     int   pframe;   /* noise pattern frame number */
     int   px;       /* noise pattern window x-position */
     int   py;       /* noise pattern window y-position */
-    bool  pshow;    /* show noise pattern */
     float pcutoff;  /* pattern cutoff frequency (relative to max) */
     float pfactor;  /* noise pattern denoise strength */
     float sigma2;   /* noise level for middle frequencies */

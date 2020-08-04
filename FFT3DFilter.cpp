@@ -171,9 +171,8 @@ const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void
             vsapi->requestFrameFilter(n, data->node, frame_ctx);
         } else {
             int fromframe = n - data->bt / 2;
-            for (int i = 0; i < data->bt; i++) {
+            for (int i = 0; i < data->bt; i++)
                 vsapi->requestFrameFilter(fromframe + i, data->node, frame_ctx);
-            }
         }
     } else if (activation_reason == arAllFramesReady) {
         return data->ApplyFilter(n, frame_ctx, core, vsapi);
@@ -195,13 +194,13 @@ FFT3DFilter::FFT3DFilter
     FFT3DFilterTransform *transform, const VSVideoInfo *_vi,
     float _sigma, float _beta, int _plane, int _bw, int _bh, int _bt, int _ow, int _oh,
     float _kratio, float _sharpen, float _scutoff, float _svr, float _smin, float _smax,
-    int _pframe, int _px, int _py, bool _pshow, float _pcutoff, float _pfactor,
+    int _pframe, int _px, int _py, bool pshow, float _pcutoff, float _pfactor,
     float _sigma2, float _sigma3, float _sigma4, float _degrid,
     float _dehalo, float _hr, float _ht, int _ncpu,
     VSNodeRef *_node, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
-pframe(_pframe), px(_px), py(_py), pshow(_pshow), pcutoff(_pcutoff), pfactor(_pfactor),
+pframe(_pframe), px(_px), py(_py), pcutoff(_pcutoff), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
