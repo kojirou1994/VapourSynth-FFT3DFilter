@@ -187,20 +187,19 @@ static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restri
     int            src_pitch = vsapi->getStride(src, plane) / sizeof(T);
     coverpitch /= sizeof(T);
 
-    int h, w;
     int width2 = src_width + src_width + mirw + mirw - 2;
     T * __restrict coverbuf1 = coverbuf + coverpitch * mirh;
 
     if( !interlaced ) /* progressive */
     {
-        for( h = mirh; h < src_height + mirh; h++ )
+        for(int h = mirh; h < src_height + mirh; h++ )
         {
-            for( w = 0; w < mirw; w++ )
+            for(int w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
             memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
-            for( w = src_width + mirw; w < coverwidth; w++ )
+            for(int w = src_width + mirw; w < coverwidth; w++ )
             {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
             }
@@ -210,14 +209,14 @@ static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restri
     }
     else /* interlaced */
     {
-        for( h = mirh; h < src_height / 2 + mirh; h++ ) /* first field */
+        for(int h = mirh; h < src_height / 2 + mirh; h++ ) /* first field */
         {
-            for( w = 0; w < mirw; w++ )
+            for(int w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
             memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
-            for( w = src_width + mirw; w < coverwidth; w++ )
+            for(int w = src_width + mirw; w < coverwidth; w++ )
             {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
             }
@@ -226,14 +225,14 @@ static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restri
         }
 
         srcp -= src_pitch;
-        for( h = src_height / 2 + mirh; h < src_height + mirh; h++ ) /* flip second field */
+        for(int h = src_height / 2 + mirh; h < src_height + mirh; h++ ) /* flip second field */
         {
-            for( w = 0; w < mirw; w++ )
+            for(int w = 0; w < mirw; w++ )
             {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
             memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
-            for( w = src_width + mirw; w < coverwidth; w++ )
+            for(int w = src_width + mirw; w < coverwidth; w++ )
             {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
             }
@@ -243,7 +242,7 @@ static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restri
     }
 
     T *pmirror = coverbuf1 - coverpitch * 2; /* pointer to vertical mirror */
-    for( h = src_height + mirh; h < coverheight; h++ )
+    for(int h = src_height + mirh; h < coverheight; h++ )
     {
         memcpy( coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
@@ -251,7 +250,7 @@ static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restri
     }
     coverbuf1 = coverbuf;
     pmirror   = coverbuf1 + coverpitch * mirh * 2; /* pointer to vertical mirror */
-    for( h = 0; h < mirh; h++ )
+    for(int h = 0; h < mirh; h++ )
     {
         memcpy( coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
@@ -433,25 +432,20 @@ const VSFrameRef *FFT3DFilterTransform::GetGridSample(VSCore *core, const VSAPI 
 //-------------------------------------------------------------------------------------------
 static void FindPatternBlock(const fftwf_complex *outcur0, int outwidth, int outpitchelems, int bh, int nox, int noy, int &px, int &py, const float *pwin, float degrid, const fftwf_complex *gridsample) {
     /* since v1.7 outwidth must be really an outpitchelems */
-    int h;
-    int w;
-    const fftwf_complex *outcur;
-    float psd;
-    float sigmaSquaredcur;
     float sigmaSquared = 1e15f;
 
     for (int by = 2; by < noy - 2; by++) {
         for (int bx = 2; bx < nox - 2; bx++) {
-            outcur = outcur0 + nox * by * bh * outpitchelems + bx * bh * outpitchelems;
-            sigmaSquaredcur = 0;
+            const fftwf_complex *outcur = outcur0 + nox * by * bh * outpitchelems + bx * bh * outpitchelems;
+            float sigmaSquaredcur = 0;
             float gcur = degrid * outcur[0][0] / gridsample[0][0]; /* grid (windowing) correction factor */
-            for (h = 0; h < bh; h++) {
-                for (w = 0; w < outwidth; w++) {
+            for (int h = 0; h < bh; h++) {
+                for (int w = 0; w < outwidth; w++) {
                     float grid0 = gcur * gridsample[w][0];
                     float grid1 = gcur * gridsample[w][1];
                     float corrected0 = outcur[w][0] - grid0;
                     float corrected1 = outcur[w][1] - grid1;
-                    psd = corrected0 * corrected0 + corrected1 * corrected1;
+                    float psd = corrected0 * corrected0 + corrected1 * corrected1;
                     sigmaSquaredcur += psd * pwin[w]; /* windowing */
                 }
                 outcur += outpitchelems;
@@ -470,15 +464,12 @@ static void FindPatternBlock(const fftwf_complex *outcur0, int outwidth, int out
 //-------------------------------------------------------------------------------------------
 
 static void SetPattern(const fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int nox, int noy, int px, int py, const float *pwin, float *pattern2d, float &psigma, float degrid, const fftwf_complex *gridsample) {
-    int h;
-    int w;
     outcur += nox * py * bh * outpitchelems + px * bh * outpitchelems;
-    float psd;
     float sigmaSquared = 0;
     float weight = 0;
 
-    for (h = 0; h < bh; h++) {
-        for (w = 0; w < outwidth; w++) {
+    for (int h = 0; h < bh; h++) {
+        for (int w = 0; w < outwidth; w++) {
             weight += pwin[w];
         }
         pwin += outpitchelems;
@@ -487,13 +478,13 @@ static void SetPattern(const fftwf_complex *outcur, int outwidth, int outpitchel
 
     float gcur = degrid * outcur[0][0] / gridsample[0][0]; /* grid (windowing) correction factor */
 
-    for (h = 0; h < bh; h++) {
-        for (w = 0; w < outwidth; w++) {
+    for (int h = 0; h < bh; h++) {
+        for (int w = 0; w < outwidth; w++) {
             float grid0 = gcur * gridsample[w][0];
             float grid1 = gcur * gridsample[w][1];
             float corrected0 = outcur[w][0] - grid0;
             float corrected1 = outcur[w][1] - grid1;
-            psd = corrected0 * corrected0 + corrected1 * corrected1;
+            float psd = corrected0 * corrected0 + corrected1 * corrected1;
             pattern2d[w] = psd * pwin[w]; /* windowing */
             sigmaSquared += pattern2d[w]; /* sum */
         }
@@ -564,7 +555,6 @@ void VS_CC FFT3DFilterTransform::Free(void *instance_data, VSCore *core, const V
 template<typename T>
 void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * __restrict srcp0, int src_pitch, int planeBase )
 {
-    int w, h;
     int ihx, ihy;
     const T * __restrict srcp = srcp0;
     float ftmp;
@@ -576,14 +566,14 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
 
     ihy = 0; /* first top (big non-overlapped) part */
     {
-        for( h = 0; h < oh; h++ )
+        for(int h = 0; h < oh; h++ )
         {
             inp = inp0 + h * bw;
-            for( w = 0; w < ow; w++ )   /* left part  (non-overlapped) row of first block */
+            for(int w = 0; w < ow; w++ )   /* left part  (non-overlapped) row of first block */
             {
                 inp[w] = float(wanxl[w] * wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
             }
-            for( w = ow; w < bw - ow; w++ )   /* left part  (non-overlapped) row of first block */
+            for(int w = ow; w < bw - ow; w++ )   /* left part  (non-overlapped) row of first block */
             {
                 inp[w] = float(wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
             }
@@ -591,7 +581,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += bw - ow;
             for( ihx =1; ihx < nox; ihx += 1 ) /* middle horizontal blocks */
             {
-                for( w = 0; w < ow; w++ )   /* first part (overlapped) row of block */
+                for(int w = 0; w < ow; w++ )   /* first part (overlapped) row of block */
                 {
                     ftmp = float(wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w          ] = ftmp * wanxr[w]; /* cur block */
@@ -600,14 +590,14 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += ow;
                 inp  += xoffset;
                 srcp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* center part  (non-overlapped) row of first block */
+                for(int w = 0; w < bw - ow - ow; w++ )   /* center part  (non-overlapped) row of first block */
                 {
                     inp[w] = float(wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
                 }
                 inp  += bw - ow - ow;
                 srcp += bw - ow - ow;
             }
-            for( w = 0; w < ow; w++ )   /* last part (non-overlapped) of line of last block */
+            for(int w = 0; w < ow; w++ )   /* last part (non-overlapped) of line of last block */
             {
                 inp[w] = float(wanxr[w] * wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
             }
@@ -615,14 +605,14 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += ow;
             srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
-        for( h = oh; h < bh - oh; h++ )
+        for(int h = oh; h < bh - oh; h++ )
         {
             inp = inp0 + h * bw;
-            for( w = 0; w < ow; w++ )   /* left part  (non-overlapped) row of first block */
+            for(int w = 0; w < ow; w++ )   /* left part  (non-overlapped) row of first block */
             {
                 inp[w] = float(wanxl[w] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
             }
-            for( w = ow; w < bw - ow; w++ )   /* left part  (non-overlapped) row of first block */
+            for(int w = ow; w < bw - ow; w++ )   /* left part  (non-overlapped) row of first block */
             {
                 inp[w] = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
             }
@@ -630,7 +620,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += bw - ow;
             for( ihx = 1; ihx < nox; ihx += 1 ) /* middle horizontal blocks */
             {
-                for( w = 0; w < ow; w++ )   /* first part (overlapped) row of block */
+                for(int w = 0; w < ow; w++ )   /* first part (overlapped) row of block */
                 {
                     ftmp = float((srcp[w] - planeBase));  /* Copy each byte from source to float array */
                     inp[w          ] = ftmp * wanxr[w]; /* cur block */
@@ -639,14 +629,14 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += ow;
                 inp  += xoffset;
                 srcp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* center part  (non-overlapped) row of first block */
+                for(int w = 0; w < bw - ow - ow; w++ )   /* center part  (non-overlapped) row of first block */
                 {
                     inp[w] = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                 }
                 inp  += bw - ow - ow;
                 srcp += bw - ow - ow;
             }
-            for( w = 0; w < ow; w++ )   /* last part (non-overlapped) line of last block */
+            for(int w = 0; w < ow; w++ )   /* last part (non-overlapped) line of last block */
             {
                 inp[w] = float(wanxr[w] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
             }
@@ -659,16 +649,16 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
 
     for( ihy = 1; ihy < noy; ihy += 1 ) /* middle vertical */
     {
-        for( h = 0; h < oh; h++ ) /* top overlapped part */
+        for(int h = 0; h < oh; h++ ) /* top overlapped part */
         {
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
-            for( w = 0; w < ow; w++ )   /* first half line of first block */
+            for(int w = 0; w < ow; w++ )   /* first half line of first block */
             {
                 ftmp = float(wanxl[w] * (srcp[w] - planeBase));
                 inp[w          ] = ftmp * wanyr[h];   /* Copy each byte from source to float array */
                 inp[w + yoffset] = ftmp * wanyl[h];   /* y overlapped */
             }
-            for( w = ow; w < bw - ow; w++ )   /* first half line of first block */
+            for(int w = ow; w < bw - ow; w++ )   /* first half line of first block */
             {
                 ftmp = float((srcp[w] - planeBase));
                 inp[w          ] = ftmp * wanyr[h];   /* Copy each byte from source to float array */
@@ -678,7 +668,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += bw - ow;
             for( ihx = 1; ihx < nox; ihx++ ) /* middle blocks */
             {
-                for( w = 0; w < ow; w++ )   /* half overlapped line of block */
+                for(int w = 0; w < ow; w++ )   /* half overlapped line of block */
                 {
                     ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w                    ] = ftmp * wanxr[w] * wanyr[h];
@@ -689,7 +679,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += ow;
                 inp  += xoffset;
                 srcp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
+                for(int w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
                 {
                     ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w          ] = ftmp * wanyr[h];
@@ -698,7 +688,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += bw - ow - ow;
                 srcp += bw - ow - ow;
             }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
+            for(int w = 0; w < ow; w++ )   /* last half line of last block */
             {
                 ftmp = float(wanxr[w] * (srcp[w] - planeBase)); /* Copy each byte from source to float array */
                 inp[w          ] = ftmp * wanyr[h];
@@ -710,15 +700,15 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += (src_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
         /* middle  vertical nonovelapped part */
-        for( h = 0; h < bh - oh - oh; h++ )
+        for(int h = 0; h < bh - oh - oh; h++ )
         {
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh) * bw + h * bw + yoffset;
-            for( w = 0; w < ow; w++ )   /* first half line of first block */
+            for(int w = 0; w < ow; w++ )   /* first half line of first block */
             {
                 ftmp = float(wanxl[w] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
-            for( w = ow; w < bw - ow; w++ )   /* first half line of first block */
+            for(int w = ow; w < bw - ow; w++ )   /* first half line of first block */
             {
                 ftmp = float((srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
@@ -727,7 +717,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += bw - ow;
             for( ihx = 1; ihx < nox; ihx++ ) /* middle blocks */
             {
-                for( w = 0; w < ow; w++ )   /* half overlapped line of block */
+                for(int w = 0; w < ow; w++ )   /* half overlapped line of block */
                 {
                     ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w          ] = ftmp * wanxr[w];
@@ -736,7 +726,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += ow;
                 inp  += xoffset;
                 srcp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
+                for(int w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
                 {
                     ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w] = ftmp;
@@ -744,7 +734,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += bw - ow - ow;
                 srcp += bw - ow - ow;
             }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
+            for(int w = 0; w < ow; w++ )   /* last half line of last block */
             {
                 ftmp = float(wanxr[w] * (srcp[w] - planeBase)); /* Copy each byte from source to float array */
                 inp[w] = ftmp;
@@ -759,15 +749,15 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
 
     ihy = noy ; /* last bottom  part */
     {
-        for( h = 0; h < oh; h++ )
+        for(int h = 0; h < oh; h++ )
         {
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
-            for( w = 0; w < ow; w++ )   /* first half line of first block */
+            for(int w = 0; w < ow; w++ )   /* first half line of first block */
             {
                 ftmp = float(wanxl[w] * wanyr[h] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
-            for( w = ow; w < bw - ow; w++ )   /* first half line of first block */
+            for(int w = ow; w < bw - ow; w++ )   /* first half line of first block */
             {
                 ftmp = float(wanyr[h] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
@@ -776,7 +766,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
             srcp += bw - ow;
             for( ihx = 1; ihx < nox; ihx++ ) /* middle blocks */
             {
-                for( w = 0; w < ow; w++ )   /* half line of block */
+                for(int w = 0; w < ow; w++ )   /* half line of block */
                 {
                     float ftmp = float(wanyr[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w          ] = ftmp * wanxr[w];
@@ -785,14 +775,14 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
                 inp  += ow;
                 inp  += xoffset;
                 srcp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* center part  (non-overlapped) row of first block */
+                for(int w = 0; w < bw - ow - ow; w++ )   /* center part  (non-overlapped) row of first block */
                 {
                     inp[w] = float(wanyr[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
                 }
                 inp  += bw - ow - ow;
                 srcp += bw - ow - ow;
             }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
+            for(int w = 0; w < ow; w++ )   /* last half line of last block */
             {
                 ftmp = float(wanxr[w] * wanyr[h] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */

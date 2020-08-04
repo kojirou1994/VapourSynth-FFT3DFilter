@@ -119,13 +119,13 @@ static void fill_complex( fftwf_complex *plane, int outsize, float realvalue, fl
 static void SigmasToPattern( float sigma, float sigma2, float sigma3, float sigma4, int bh, int outwidth, int outpitchelems, float norm, float *pattern2d )
 {
     /* it is not fast, but called only in constructor */
-    float sigmacur;
     const float ft2 = sqrt( 0.5f ) / 2; /* frequency for sigma2 */
     const float ft3 = sqrt( 0.5f ) / 4; /* frequency for sigma3 */
     for( int h = 0; h < bh; h++ )
     {
         for( int w = 0; w < outwidth; w++ )
         {
+            float sigmacur;
             float fy = (bh - 2.0f * abs( h - bh / 2)) / bh; /* normalized to 1 */
             float fx = (w * 1.0f) / outwidth;               /* normalized to 1 */
             float f = sqrt( (fx * fx + fy * fy) * 0.5f );   /* normalized to 1 */
@@ -314,16 +314,14 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node), pshownode(_pshownode) {
 //-------------------------------------------------------------------------------------------
 static void PutPatternOnly( fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int nox, int noy, int px, int py )
 {
-    int h,w;
-    int block;
     int pblock = py * nox + px;
     int blocks = nox * noy;
 
-    for( block = 0; block < pblock; block++ )
+    for( int block = 0; block < pblock; block++ )
     {
-        for( h = 0; h < bh; h++ )
+        for( int h = 0; h < bh; h++ )
         {
-            for( w = 0; w < outwidth; w++ )
+            for(int w = 0; w < outwidth; w++ )
             {
                 outcur[w][0] = 0;
                 outcur[w][1] = 0;
@@ -334,11 +332,11 @@ static void PutPatternOnly( fftwf_complex *outcur, int outwidth, int outpitchele
 
     outcur += bh * outpitchelems;
 
-    for( block = pblock + 1; block < blocks; block++ )
+    for(int block = pblock + 1; block < blocks; block++ )
     {
-        for( h = 0; h < bh; h++ )
+        for(int h = 0; h < bh; h++ )
         {
-            for( w = 0; w < outwidth; w++ )
+            for(int w = 0; w < outwidth; w++ )
             {
                 outcur[w][0] = 0;
                 outcur[w][1] = 0;
@@ -403,6 +401,7 @@ VSFrameRef *FFT3DFilter::ApplyPShow(int n, VSFrameContext *frame_ctx, VSCore *co
 
     int pxf = vsapi->propGetInt(props, "pxf", 0, nullptr);
     int pyf = vsapi->propGetInt(props, "pyf", 0, nullptr);
+    float psigma = vsapi->propGetFloat(props, "psigma", 0, nullptr);
 
     vsapi->freeFrame(pshowsrc);
 
