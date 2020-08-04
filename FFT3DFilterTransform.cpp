@@ -306,7 +306,10 @@ FFT3DFilterTransform::FFT3DFilterTransform(VSNodeRef *node_, int plane_, int win
 
     const VSVideoInfo *srcvi = vsapi->getVideoInfo(node);
 
-    planeBase = (plane && srcvi->format->sampleType == stInteger) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
+    if (wintype == 9000)
+        planeBase = (srcvi->format->sampleType == stInteger) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
+    else
+        planeBase = (plane && srcvi->format->sampleType == stInteger) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
 
     nox = ((srcvi->width >> (plane ? srcvi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((srcvi->height >> (plane ? srcvi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
@@ -804,9 +807,10 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     if (oh < 0)
         oh = bh / 3;
 
-    // FIXME, dstvi is the extracted grayscale format of the source plane
-
-    planeBase = (plane && srcvi->format->sampleType == stInteger) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
+    if (wintype == 9000)
+        planeBase = (srcvi->format->sampleType == stInteger) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
+    else
+        planeBase = (plane && srcvi->format->sampleType == stInteger) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
 
     nox = ((srcvi->width >> (plane ? srcvi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((srcvi->height >> (plane ? srcvi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
