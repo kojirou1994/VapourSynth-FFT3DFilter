@@ -1130,7 +1130,7 @@ void FFT3DFilterInvTransform::DecodeOverlapPlane( const float * __restrict inp0,
     }
 }
 
-FFT3DFilterPShow::FFT3DFilterPShow(VSNodeRef *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_) {
+FFT3DFilterPShow::FFT3DFilterPShow(VSNodeRef *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_) {
     vi = vsapi->getVideoInfo(node);
 }
 

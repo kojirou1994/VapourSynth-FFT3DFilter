@@ -200,7 +200,7 @@ FFT3DFilter::FFT3DFilter
     VSNodeRef *_node, VSCore *core, const VSAPI *vsapi
 ) : sigma(_sigma), beta(_beta), plane(_plane), bw(_bw), bh(_bh), bt(_bt), ow(_ow), oh(_oh),
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
-pframe(_pframe), px(_px), py(_py), pcutoff(_pcutoff), pfactor(_pfactor),
+pframe(_pframe), px(_px), py(_py), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
 dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),

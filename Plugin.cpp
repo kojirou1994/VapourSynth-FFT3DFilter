@@ -298,8 +298,6 @@ static void VS_CC createFFT3DFilter
                 vsapi->propSetIntArray(outtmp, "planes", pvals, 3);
                 vsapi->propSetInt(outtmp, "colorfamily", vi->format->colorFamily, paAppend);
                 VSMap *tmp2 = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.std", core), "ShufflePlanes", outtmp);
-                const char *err = vsapi->getError(tmp2);
-
                 VSNodeRef *finalnode = vsapi->propGetNode(tmp2, "clip", 0, nullptr);
                 vsapi->propSetNode(out, "clip", finalnode, paAppend);
                 vsapi->freeNode(finalnode);
