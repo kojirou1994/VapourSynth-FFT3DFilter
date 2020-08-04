@@ -193,7 +193,7 @@ static void VS_CC createFFT3DFilter
         VSNodeRef *transformednode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
         vsapi->clearMap(tmp);
 
-        if (pshow && pfactor > 0) {
+        if (pshow && pfactor != 0) {
             FFT3DFilterTransform *pshowtransform = new FFT3DFilterTransform(vsapi->cloneNodeRef(node), plane, 9000, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
 
             vsapi->createFilter
