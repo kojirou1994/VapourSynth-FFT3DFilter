@@ -177,8 +177,10 @@ static void VS_CC createFFT3DFilter
         VSNodeRef *mainnode = nullptr;
         VSMap *tmp = vsapi->createMap();
 
+        bool pshowmode = (pshow && pfactor != 0);
 
-        FFT3DFilterTransform *transform = new FFT3DFilterTransform(node, plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
+
+        FFT3DFilterTransform *transform = new FFT3DFilterTransform(node, plane, pshowmode ? 9000 : wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
 
         vsapi->createFilter
         (
@@ -193,8 +195,8 @@ static void VS_CC createFFT3DFilter
         VSNodeRef *transformednode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
         vsapi->clearMap(tmp);
 
-        if (pshow && pfactor != 0) {
-            FFT3DFilterTransform *pshowtransform = new FFT3DFilterTransform(vsapi->cloneNodeRef(node), plane, 9000, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
+        if (pshowmode) {
+            FFT3DFilterTransform *pshowtransform = new FFT3DFilterTransform(vsapi->cloneNodeRef(node), plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
 
             vsapi->createFilter
             (
@@ -253,7 +255,7 @@ static void VS_CC createFFT3DFilter
 
         vsapi->freeMap(tmp);
 
-        FFT3DFilterInvTransform *invtransform = new FFT3DFilterInvTransform(mainnode, vi, plane, wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
+        FFT3DFilterInvTransform *invtransform = new FFT3DFilterInvTransform(mainnode, vi, plane, pshowmode ? 9000 : wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
 
         vsapi->createFilter
         (
