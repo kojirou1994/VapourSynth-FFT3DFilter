@@ -155,13 +155,8 @@ static void Pattern2Dto3D(const float *pattern2d, int bh, int outwidth, int outp
     }
 }
 
-void VS_CC FFT3DFilter::Init(VSMap *in, VSMap *out, void **instance_data, VSNode *node, VSCore *core, const VSAPI *vsapi) {
-    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
-    vsapi->setVideoInfo(vsapi->getVideoInfo(data->node), 1, node);
-}
-
-const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void **instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
-    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(*instance_data);
+const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
+    FFT3DFilter *data = reinterpret_cast<FFT3DFilter *>(instance_data);
     if (activation_reason == arInitial) {
         int btcur = data->bt; /* bt used for current frame */
         if ((data->bt / 2 > n) || (data->bt - 1) / 2 > (data->vi->numFrames - 1 - n))
@@ -211,10 +206,10 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
-    maxval = (1 << vi->format->bitsPerSample) - 1;
+    maxval = (1 << vi->format.bitsPerSample) - 1;
 
-    nox = ((vi->width >> (plane ? vi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
-    noy = ((vi->height >> (plane ? vi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
+    nox = ((vi->width >> (plane ? vi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
+    noy = ((vi->height >> (plane ? vi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
     /* padding by 1 block per side */
     nox += 2;
@@ -226,7 +221,7 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;    /* must be even for SSE - v1.7 */
-    outpitch = outpitchelems * vi->format->bytesPerSample;
+    outpitch = outpitchelems * vi->format.bytesPerSample;
 
     outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 

@@ -21,18 +21,17 @@
 #include <string>
 #include <stdexcept>
 
-#include <VapourSynth.h>
-#include <VSHelper.h>
+#include <VapourSynth4.h>
 #include "FFT3DFilter.h"
 
 static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsapi) {
-    int m = vsapi->propNumElements(in, "planes");
+    int m = vsapi->mapNumElements(in, "planes");
 
     for (int i = 0; i < 3; i++)
         process[i] = (m <= 0);
 
     for (int i = 0; i < m; i++) {
-        int o = int64ToIntS(vsapi->propGetInt(in, "planes", i, nullptr));
+        int o = vsapi->mapGetIntSaturated(in, "planes", i, nullptr);
 
         if (o < 0 || o >= 3)
             throw std::runtime_error("plane index out of range");
@@ -54,7 +53,7 @@ static inline void set_option_int64
 )
 {
     int e;
-    *opt = vsapi->propGetInt( in, arg, 0, &e );
+    *opt = vsapi->mapGetInt( in, arg, 0, &e );
     if( e )
         *opt = default_value;
 }
@@ -69,7 +68,7 @@ static inline void set_option_float
 )
 {
     int e;
-    *opt = static_cast<float>(vsapi->propGetFloat( in, arg, 0, &e ));
+    *opt = vsapi->mapGetFloatSaturated( in, arg, 0, &e );
     if( e )
         *opt = static_cast<float>(default_value);
 }
@@ -163,11 +162,11 @@ static void VS_CC createFFT3DFilter
         if (beta < 1)
             throw std::runtime_error{ "beta must be not less 1.0" };
 
-        VSNodeRef *node = vsapi->propGetNode(in, "clip", 0, nullptr);
+        VSNodeRef *node = vsapi->mapGetNode(in, "clip", 0, nullptr);
         const VSVideoInfo *vi = vsapi->getVideoInfo(node);
 
         int num_process = 0;
-        for (int i = 0; i < vi->format->numPlanes; i++)
+        for (int i = 0; i < vi->format.numPlanes; i++)
             if (process[i])
                 num_process++;
 
@@ -183,38 +182,40 @@ static void VS_CC createFFT3DFilter
 
             FFT3DFilterTransform *pshowtransform = new FFT3DFilterTransform(true, node, plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
 
-            vsapi->createFilter
+            vsapi->createVideoFilter
             (
-                in, tmp,
+                tmp,
                 "FFT3DFilterPShowHelper",
-                FFT3DFilterTransform::Init,
+                vi,
+                1,
                 FFT3DFilterTransform::GetPShowFrame,
                 FFT3DFilterTransform::Free,
                 fmParallelRequests, 0, pshowtransform, core
             );
 
-            VSNodeRef *pshownode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+            VSNodeRef *pshownode = vsapi->mapGetNode(tmp, "clip", 0, nullptr);
             vsapi->clearMap(tmp);
 
             FFT3DFilterPShow *pshowfilter = new FFT3DFilterPShow(pshownode, plane, bw, bh, ow, oh, interlaced, core, vsapi);
 
-            vsapi->createFilter
+            vsapi->createVideoFilter
             (
-                in, tmp,
+                tmp,
                 "FFT3DFilterPShow",
-                FFT3DFilterPShow::Init,
+                vi,
+                1,
                 FFT3DFilterPShow::GetFrame,
                 FFT3DFilterPShow::Free,
                 fmParallelRequests, 0, pshowfilter, core
             );
 
-            vsapi->propSetData(tmp, "props", "px", -1, paAppend);
-            vsapi->propSetData(tmp, "props", "py", -1, paAppend);
-            vsapi->propSetData(tmp, "props", "sigma", -1, paAppend);
+            vsapi->mapSetData(tmp, "props", "px", -1, dtUtf8, paAppend);
+            vsapi->mapSetData(tmp, "props", "py", -1, dtUtf8, paAppend);
+            vsapi->mapSetData(tmp, "props", "sigma", -1, dtUtf8, paAppend);
 
-            VSMap *tmp2 = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.text", core), "FrameProps", tmp);
-            VSNodeRef *textnode = vsapi->propGetNode(tmp2, "clip", 0, nullptr);
-            vsapi->propSetNode(out, "clip", textnode, paAppend);
+            VSMap *tmp2 = vsapi->invoke(vsapi->getPluginByID("com.vapoursynth.text", core), "FrameProps", tmp);
+            VSNodeRef *textnode = vsapi->mapGetNode(tmp2, "clip", 0, nullptr);
+            vsapi->mapSetNode(out, "clip", textnode, paAppend);
             vsapi->freeNode(textnode);
             vsapi->freeMap(tmp2);
 
@@ -223,16 +224,17 @@ static void VS_CC createFFT3DFilter
             VSMap *tmp = vsapi->createMap();
             VSMap *outtmp = vsapi->createMap();
 
-            for (int plane = 0; plane < vi->format->numPlanes; plane++) {
+            for (int plane = 0; plane < vi->format.numPlanes; plane++) {
                 if (process[plane]) {
 
                     FFT3DFilterTransform *transform = new FFT3DFilterTransform(false, vsapi->cloneNodeRef(node), plane, wintype, bw, bh, ow, oh, px, py, pcutoff, degrid, interlaced, measure, core, vsapi);
 
-                    vsapi->createFilter
+                    vsapi->createVideoFilter
                     (
-                        in, tmp,
-                        "FFT3DFilterTransform",
-                        FFT3DFilterTransform::Init,
+                        tmp,
+                        ("FFT3DFilterTransform" + std::to_string(plane)).c_str(),
+                        &transform->outvi,
+                        1,
                         FFT3DFilterTransform::GetFrame,
                         FFT3DFilterTransform::Free,
                         fmParallelRequests, 0, transform, core
@@ -241,11 +243,11 @@ static void VS_CC createFFT3DFilter
                     VSNodeRef *transformednode = nullptr;
 
                     if (bt > 1) {
-                        VSMap *tmp2 = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.std", core), "Cache", tmp);
-                        transformednode = vsapi->propGetNode(tmp2, "clip", 0, nullptr);
+                        VSMap *tmp2 = vsapi->invoke(vsapi->getPluginByID("com.vapoursynth.std", core), "Cache", tmp);
+                        transformednode = vsapi->mapGetNode(tmp2, "clip", 0, nullptr);
                         vsapi->freeMap(tmp2);
                     } else {
-                        transformednode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+                        transformednode = vsapi->mapGetNode(tmp, "clip", 0, nullptr);
                     }
 
                     vsapi->clearMap(tmp);
@@ -256,50 +258,52 @@ static void VS_CC createFFT3DFilter
                         sigma2, sigma3, sigma4, degrid, dehalo, hr, ht, ncpu,
                         transformednode, core, vsapi);
 
-                    vsapi->createFilter
+                    vsapi->createVideoFilter
                     (
-                        in, tmp,
-                        "FFT3DFilterMain",
-                        FFT3DFilter::Init,
+                        tmp,
+                        ("FFT3DFilterMain" + std::to_string(plane)).c_str(),
+                        vsapi->getVideoInfo(transformednode),
+                        1,
                         FFT3DFilter::GetFrame,
                         FFT3DFilter::Free,
                         fmParallelRequests, 0, mainFilter, core
                     );
 
-                    VSNodeRef *mainnode = vsapi->propGetNode(tmp, "clip", 0, nullptr);
+                    VSNodeRef *mainnode = vsapi->mapGetNode(tmp, "clip", 0, nullptr);
                     vsapi->clearMap(tmp);
 
                     FFT3DFilterInvTransform *invtransform = new FFT3DFilterInvTransform(mainnode, vi, plane, wintype, bw, bh, ow, oh, interlaced, measure, core, vsapi);
 
-                    vsapi->createFilter
+                    vsapi->createVideoFilter
                     (
-                        in, vi->format->numPlanes == 1 ? out : outtmp,
-                        "FFT3DFilterInverseTransform",
-                        FFT3DFilterInvTransform::Init,
+                        vi->format.numPlanes == 1 ? out : outtmp,
+                        ("FFT3DFilterInverseTransform" + std::to_string(plane)).c_str(),
+                        &invtransform->dstvi,
+                        1,
                         FFT3DFilterInvTransform::GetFrame,
                         FFT3DFilterInvTransform::Free,
                         fmParallelRequests, 0, invtransform, core
                     );
                 } else {
-                    vsapi->propSetNode(outtmp, "clip", node, paAppend);
+                    vsapi->mapSetNode(outtmp, "clip", node, paAppend);
                 }
             }
 
             vsapi->freeNode(node);
             
-            if (vi->format->numPlanes > 1) {
-                for (int plane = 0; plane < vi->format->numPlanes; plane++) {
-                    VSNodeRef *tmpnode = vsapi->propGetNode(outtmp, "clip", plane, nullptr);
-                    vsapi->propSetNode(outtmp, "clips", tmpnode, paAppend);
+            if (vi->format.numPlanes > 1) {
+                for (int plane = 0; plane < vi->format.numPlanes; plane++) {
+                    VSNodeRef *tmpnode = vsapi->mapGetNode(outtmp, "clip", plane, nullptr);
+                    vsapi->mapSetNode(outtmp, "clips", tmpnode, paAppend);
                     vsapi->freeNode(tmpnode);
                 }
-                vsapi->propDeleteKey(outtmp, "clip");
+                vsapi->mapDeleteKey(outtmp, "clip");
                 int64_t pvals[] = { 0, process[1] ? 0 : 1, process[2] ? 0 : 2 };
-                vsapi->propSetIntArray(outtmp, "planes", pvals, 3);
-                vsapi->propSetInt(outtmp, "colorfamily", vi->format->colorFamily, paAppend);
-                VSMap *tmp2 = vsapi->invoke(vsapi->getPluginById("com.vapoursynth.std", core), "ShufflePlanes", outtmp);
-                VSNodeRef *finalnode = vsapi->propGetNode(tmp2, "clip", 0, nullptr);
-                vsapi->propSetNode(out, "clip", finalnode, paAppend);
+                vsapi->mapSetIntArray(outtmp, "planes", pvals, 3);
+                vsapi->mapSetInt(outtmp, "colorfamily", vi->format.colorFamily, paAppend);
+                VSMap *tmp2 = vsapi->invoke(vsapi->getPluginByID("com.vapoursynth.std", core), "ShufflePlanes", outtmp);
+                VSNodeRef *finalnode = vsapi->mapGetNode(tmp2, "clip", 0, nullptr);
+                vsapi->mapSetNode(out, "clip", finalnode, paAppend);
                 vsapi->freeNode(finalnode);
                 vsapi->freeMap(tmp2);
             }
@@ -311,34 +315,21 @@ static void VS_CC createFFT3DFilter
 
     }
     catch (std::runtime_error &e) {
-        vsapi->setError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());
+        vsapi->mapSetError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());
     }
 }
 
 //fixme, make interlaced handling based on field based property and per frame
 
-VS_EXTERNAL_API( void ) VapourSynthPluginInit
-(
-    VSConfigPlugin     config_func,
-    VSRegisterFunction register_func,
-    VSPlugin *         plugin
-)
-{
-    config_func
-    (
-        "systems.innocent.fft3dfilter", "fft3dfilter",
-        "FFT3DFilter",
-        VAPOURSYNTH_API_VERSION, 1, plugin
-    );
-    register_func
-    (
-        "FFT3DFilter",
-        "clip:clip;sigma:float:opt;beta:float:opt;planes:int[]:opt;bw:int:opt;bh:int:opt;bt:int:opt;ow:int:opt;oh:int:opt;"
+VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
+    vspapi->configPlugin("systems.innocent.fft3dfilter", "fft3dfilter", "systems", VS_MAKE_VERSION(2, 0), VAPOURSYNTH_API_VERSION, 0, plugin);
+    vspapi->registerFunction("FFT3DFilter", 
+        "clip:vnode;sigma:float:opt;beta:float:opt;planes:int[]:opt;bw:int:opt;bh:int:opt;bt:int:opt;ow:int:opt;oh:int:opt;"
         "kratio:float:opt;sharpen:float:opt;scutoff:float:opt;svr:float:opt;smin:float:opt;smax:float:opt;"
         "measure:int:opt;interlaced:int:opt;wintype:int:opt;"
         "pframe:int:opt;px:int:opt;py:int:opt;pshow:int:opt;pcutoff:float:opt;pfactor:float:opt;"
         "sigma2:float:opt;sigma3:float:opt;sigma4:float:opt;degrid:float:opt;"
         "dehalo:float:opt;hr:float:opt;ht:float:opt;ncpu:int:opt;",
-        createFFT3DFilter, nullptr, plugin
-    );
+        "clip:vnode;",
+        createFFT3DFilter, nullptr, plugin);
 }
