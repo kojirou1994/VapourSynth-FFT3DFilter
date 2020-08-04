@@ -2,7 +2,7 @@ project('FFT3DFilter', 'cpp',
   default_options : ['buildtype=release', 'b_ndebug=if-release', 'cpp_std=c++1z'],
   license : 'GPL2',
   meson_version : '>=0.38.0',
-  version : '1'
+  version : '2'
 )
 
 cc = meson.get_compiler('cpp')
@@ -11,6 +11,7 @@ sources = [
   'FFT3DFilter.cpp',
   'FFT3DFilter.h',
   'fft3dfilter_c.cpp',
+  'FFT3DFilterTransform.cpp',
   'Plugin.cpp'
 ]
 
