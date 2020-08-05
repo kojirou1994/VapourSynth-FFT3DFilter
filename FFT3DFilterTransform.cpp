@@ -289,7 +289,7 @@ static void CoverbufToFramePlane(const T * __restrict coverbuf, int coverwidth, 
 }
 //-----------------------------------------------------------------------
 
-FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), in(nullptr, nullptr), plan(nullptr, nullptr) {
+FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), ncpu(ncpu_), in(nullptr, nullptr), plan(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -341,8 +341,12 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
 
     VSFrameRef *out = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, nullptr, core);
 
+    fftwf_plan_with_nthreads(ncpu);
+
     plan = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_r2c(2, ndim, howmanyblocks,
         in.get(), inembed, 1, idist, reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(out, 0)), onembed, 1, odist, planFlags), fftwf_destroy_plan);
+
+    fftwf_plan_with_nthreads(1);
 
     vsapi->freeFrame(out);
 
@@ -793,7 +797,7 @@ void FFT3DFilterTransform::InitOverlapPlane( float * __restrict inp0, const T * 
 //
 //-----------------------------------------------------------------------------------------
 
-FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, VSCore *core, const VSAPI *vsapi) : node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
+FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideoInfo *srcvi, int plane, int wintype, int bw_, int bh_, int ow_, int oh_, bool interlaced_, bool measure, int ncpu_, VSCore *core, const VSAPI *vsapi) : node(node_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), interlaced(interlaced_), ncpu(ncpu_), in(nullptr, nullptr), planinv(nullptr, nullptr) {
     if (ow < 0)
         ow = bw / 3;
     if (oh < 0)
@@ -847,8 +851,12 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     const VSVideoInfo *inputvi = vsapi->getVideoInfo(node);
     VSFrameRef *src = vsapi->newVideoFrame(&inputvi->format, inputvi->width, inputvi->height, nullptr, core);
 
+    fftwf_plan_with_nthreads(ncpu);
+
     planinv = std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)>(fftwf_plan_many_dft_c2r(2, ndim, howmanyblocks,
         reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(src, 0)), onembed, 1, odist, in.get(), inembed, 1, idist, planFlags), fftwf_destroy_plan);
+
+    fftwf_plan_with_nthreads(1);
 
     vsapi->freeFrame(src);
 }

@@ -209,7 +209,7 @@ private:
 public:
     VSVideoInfo outvi; // fixme, hie behind a fucntion or something
 
-    FFT3DFilterTransform(bool pshow, VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+    FFT3DFilterTransform(bool pshow, VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
     const VSFrameRef *GetGridSample(VSCore *core, const VSAPI *vsapi);
     VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
     void GetNoisePattern(int n, int &px, int &py, float *pattern2d, float &psigma, const fftwf_complex *gridsample, VSCore *core, const VSAPI *vsapi);
@@ -265,7 +265,7 @@ private:
 public:
     VSVideoInfo dstvi; // fixme, hide
 
-    FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, VSCore *core, const VSAPI *vsapi);
+    FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
 
     static const VSFrameRef *VS_CC GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
     static void VS_CC Free(void *instance_data, VSCore *core, const VSAPI *vsapi);
