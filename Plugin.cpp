@@ -186,7 +186,7 @@ static void VS_CC createFFT3DFilter
             vsapi->createVideoFilter
             (
                 tmp,
-                "FFT3DFilterPShowHelper",
+                "FFT3DFilterHelper",
                 vi,
                 1,
                 FFT3DFilterTransform::GetPShowFrame,
@@ -233,7 +233,7 @@ static void VS_CC createFFT3DFilter
                     vsapi->createVideoFilter
                     (
                         tmp,
-                        ("FFT3DFilterTransform" + std::to_string(plane)).c_str(),
+                        ("FFT3DFilterTrans" + std::to_string(plane)).c_str(),
                         &transform->outvi,
                         1,
                         FFT3DFilterTransform::GetFrame,
@@ -280,7 +280,7 @@ static void VS_CC createFFT3DFilter
                     vsapi->createVideoFilter
                     (
                         vi->format.numPlanes == 1 ? out : tmp,
-                        ("FFT3DFilterInverseTransform" + std::to_string(plane)).c_str(),
+                        ("FFT3DFilterInv" + std::to_string(plane)).c_str(),
                         &invtransform->dstvi,
                         1,
                         FFT3DFilterInvTransform::GetFrame,
