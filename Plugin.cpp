@@ -222,7 +222,7 @@ static void VS_CC createFFT3DFilter
             vsapi->freeMap(tmp);
         } else {
             VSMap *tmp = vsapi->createMap();
-            VSMap *outtmp = vsapi->createMap();
+            VSNodeRef *outnodes[3] = {};
 
             for (int plane = 0; plane < vi->format.numPlanes; plane++) {
                 if (process[plane]) {
@@ -269,7 +269,7 @@ static void VS_CC createFFT3DFilter
                         bt == 0 ? fmParallelRequests : fmParallel, 0, mainFilter, core
                     );
 
-                    //vsapi->setInternalFilterRelation(tmp, &transformednode, 1);
+                    vsapi->setInternalFilterRelation(tmp, &transformednode, 1);
 
                     VSNodeRef *mainnode = vsapi->mapGetNode(tmp, "clip", 0, nullptr);
                     vsapi->clearMap(tmp);
@@ -278,7 +278,7 @@ static void VS_CC createFFT3DFilter
 
                     vsapi->createVideoFilter
                     (
-                        vi->format.numPlanes == 1 ? out : outtmp,
+                        vi->format.numPlanes == 1 ? out : tmp,
                         ("FFT3DFilterInverseTransform" + std::to_string(plane)).c_str(),
                         &invtransform->dstvi,
                         1,
@@ -287,9 +287,15 @@ static void VS_CC createFFT3DFilter
                         fmParallelRequests, 0, invtransform, core
                     );
 
-                    //vsapi->setInternalFilterRelation(vi->format.numPlanes == 1 ? out : outtmp, &mainnode, 1);
+                    if (vi->format.numPlanes == 1) {
+                        vsapi->setInternalFilterRelation(out, &mainnode, 1);
+                    } else {
+                        vsapi->setInternalFilterRelation(tmp, &mainnode, 1);
+                        outnodes[plane] = vsapi->mapGetNode(tmp, "clip", 0, nullptr);
+                        vsapi->clearMap(tmp);
+                    }
                 } else {
-                    vsapi->mapSetNode(outtmp, "clip", node, paAppend);
+                    outnodes[plane] = vsapi->cloneNodeRef(node);
                 }
             }
 
@@ -297,22 +303,19 @@ static void VS_CC createFFT3DFilter
             
             if (vi->format.numPlanes > 1) {
                 for (int plane = 0; plane < vi->format.numPlanes; plane++) {
-                    VSNodeRef *tmpnode = vsapi->mapGetNode(outtmp, "clip", plane, nullptr);
-                    vsapi->mapSetNode(outtmp, "clips", tmpnode, paAppend);
-                    vsapi->freeNode(tmpnode);
+                    vsapi->mapSetNode(tmp, "clips", outnodes[plane], paAppend);
+                    vsapi->freeNode(outnodes[plane]);
                 }
-                vsapi->mapDeleteKey(outtmp, "clip");
                 int64_t pvals[] = { 0, process[1] ? 0 : 1, process[2] ? 0 : 2 };
-                vsapi->mapSetIntArray(outtmp, "planes", pvals, 3);
-                vsapi->mapSetInt(outtmp, "colorfamily", vi->format.colorFamily, paAppend);
-                VSMap *tmp2 = vsapi->invoke(vsapi->getPluginByID("com.vapoursynth.std", core), "ShufflePlanes", outtmp);
+                vsapi->mapSetIntArray(tmp, "planes", pvals, 3);
+                vsapi->mapSetInt(tmp, "colorfamily", vi->format.colorFamily, paAppend);
+                VSMap *tmp2 = vsapi->invoke(vsapi->getPluginByID("com.vapoursynth.std", core), "ShufflePlanes", tmp);
                 VSNodeRef *finalnode = vsapi->mapGetNode(tmp2, "clip", 0, nullptr);
                 vsapi->mapSetNode(out, "clip", finalnode, paAppend);
                 vsapi->freeNode(finalnode);
                 vsapi->freeMap(tmp2);
             }
 
-            vsapi->freeMap(outtmp);
             vsapi->freeMap(tmp);
         }
 
