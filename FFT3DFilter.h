@@ -167,7 +167,6 @@ private:
     float pcutoff;
     float degrid;
     bool interlaced;
-    int   ncpu;     /* number of threads - v2.0 */
 
     // set by constructor
     VSNodeRef *node;
@@ -220,7 +219,6 @@ private:
     int ow;       /* overlap width - v.0.9 */
     int oh;       /* overlap height - v.0.9 */
     bool interlaced;
-    int   ncpu;     /* number of threads - v2.0 */
 
     // set by constructor
     VSNodeRef *node;
