@@ -206,8 +206,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
-    maxval = (1 << vi->format.bitsPerSample) - 1;
-
     nox = ((vi->width >> (plane ? vi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((vi->height >> (plane ? vi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
@@ -269,8 +267,8 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     gridsample = transform->GetGridSample(core, vsapi);
 
     if (pfactor != 0 && isPatternSet == false && pshow == false) /* get noise pattern */ {
-        // FIXME, is psigma used? if not remove from class
         // modifies px, py, pattern2d and psigma
+        float psigma;
         transform->GetNoisePattern(pframe, px, py, pattern2d.get(), psigma, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), core, vsapi);
     }
 

@@ -114,9 +114,11 @@ private:
     std::unique_ptr<float[], decltype(&fftw_free)> wsharpen;
     std::unique_ptr<float[], decltype(&fftw_free)> wdehalo;
 
+    // Shared buffers only used for bt=0 (kalman) mode
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> outLast;
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> covar;
     std::unique_ptr<fftwf_complex[], decltype(&fftw_free)> covarProcess;
+    //
     float sigmaSquaredNoiseNormed;
     float sigmaSquaredNoiseNormed2D;
     float sigmaNoiseNormed2D;
@@ -129,11 +131,8 @@ private:
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
 
-    int maxval;
-
     std::unique_ptr<float[], decltype(&fftw_free)> pattern2d;
     std::unique_ptr<float[], decltype(&fftw_free)> pattern3d;
-    float psigma;
 
     const VSVideoInfo *vi;
     VSNodeRef *node;
