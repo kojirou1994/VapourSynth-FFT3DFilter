@@ -188,8 +188,6 @@ private:
     int outwidth;
     int outpitchelems; /* v.1.7 */
 
-    int outsize;
-
     std::unique_ptr<float[]> wanxl; /* analysis */
     std::unique_ptr<float[]> wanxr;
     std::unique_ptr<float[]> wanyl;
@@ -240,8 +238,6 @@ private:
     int nox, noy;
     int outwidth;
     int outpitchelems; /* v.1.7 */
-
-    int outsize;
 
     float norm; /* normalization factor */
 

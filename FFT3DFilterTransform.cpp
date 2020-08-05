@@ -324,7 +324,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
     in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;
-    outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
+    int outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 
     int planFlags = (measure ? FFTW_MEASURE : FFTW_ESTIMATE) | FFTW_DESTROY_INPUT;
     int ndim[2] = { bh, bw }; 
@@ -830,7 +830,6 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;
-    outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
     norm = 1.0f / (bw * bh); /* do not forget set FFT normalization factor */
 
     // FFTW_PRESERVE_INPUT would be preferred but it's not implemented due to the infinite greatness of FFTW
