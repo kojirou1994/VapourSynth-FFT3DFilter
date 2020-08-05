@@ -212,8 +212,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     /* padding by 1 block per side */
     nox += 2;
     noy += 2;
-    mirw = bw - ow; /* set mirror size as block interval */
-    mirh = bh - oh;
 
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;    /* must be even for SSE - v1.7 */
@@ -239,8 +237,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     norm = 1.0f / (bw * bh); /* do not forget set FFT normalization factor */
 
     sigmaSquaredNoiseNormed2D = sigma * sigma / norm;
-    sigmaNoiseNormed2D = sigma / sqrtf( norm );
-    sigmaMotionNormed  = sigma * kratio / sqrtf( norm );
     sigmaSquaredSharpenMinNormed = smin * smin / norm;
     sigmaSquaredSharpenMaxNormed = smax * smax / norm;
     ht2n = ht * ht / norm; /* halo threshold squared and normed - v1.9 */

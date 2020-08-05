@@ -121,15 +121,10 @@ private:
     //
     float sigmaSquaredNoiseNormed;
     float sigmaSquaredNoiseNormed2D;
-    float sigmaNoiseNormed2D;
-    float sigmaMotionNormed;
     float sigmaSquaredSharpenMinNormed;
     float sigmaSquaredSharpenMaxNormed;
     float ht2n; /* halo threshold squared normed */
     float norm; /* normalization factor */
-
-    int mirw; /* mirror width for padding */
-    int mirh; /* mirror height for padding */
 
     std::unique_ptr<float[], decltype(&fftw_free)> pattern2d;
     std::unique_ptr<float[], decltype(&fftw_free)> pattern3d;
@@ -240,7 +235,7 @@ private:
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
 
-    int planeBase;
+    int planeBase; // fixme, added as a constant before transform and remove it again after inverse transform, pointless?
 
     int nox, noy;
     int outwidth;
