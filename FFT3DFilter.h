@@ -28,11 +28,8 @@
 
 #include <VapourSynth4.h>
 
-void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, float *wanyl, float *wanyr);
-void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynxr, float *wsynyl, float *wsynyr);
 void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float sharpen, float *wsharpen);
 void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float dehalo, float *wdehalo);
-void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, float pcutoff, float *pwin);
 
 /** declarations of filtering functions: **/
 /* C */

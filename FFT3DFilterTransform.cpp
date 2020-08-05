@@ -36,7 +36,7 @@
 #include <stdexcept>
 #include "FFT3DFilter.h"
 
-void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, float *wanyl, float *wanyr) {
+static void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, float *wanyl, float *wanyr) {
     constexpr float pi = 3.1415926535897932384626433832795f;
     if (wintype == 0) {  
         /* 
@@ -73,7 +73,7 @@ void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, 
     }
 }
 
-void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynxr, float *wsynyl, float *wsynyr) {
+static void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynxr, float *wsynyl, float *wsynyr) {
     constexpr float pi = 3.1415926535897932384626433832795f;
     if (wintype == 0) { 
         for (int i = 0; i < ow; i++) {
@@ -154,7 +154,7 @@ void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, 
     }
 }
 
-void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, float pcutoff, float *pwin) {
+static void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, float pcutoff, float *pwin) {
     for (int j = 0; j < bh; j++) {
         float fh2;
         if (j < bh / 2)
