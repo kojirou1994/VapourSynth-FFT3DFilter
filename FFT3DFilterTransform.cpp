@@ -98,15 +98,6 @@ void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynx
             wsynyl[i] = wanyl * wanyl * wanyl;
             wsynyr[i] = wanyr * wanyr * wanyr;
         }
-    } else if (wintype == 9000) {
-        for (int i = 0; i < ow; i++) {
-            wsynxl[i] = 1;
-            wsynxr[i] = 1;
-        }
-        for (int i = 0; i < oh; i++) {
-            wsynyl[i] = 1;
-            wsynyr[i] = 1;
-        }
     } else {
         /* define synthesis as rised cosine (Hanning) */
         for (int i = 0; i < ow; i++) {
@@ -179,12 +170,12 @@ void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, float pcu
 
 //
 template<typename T>
-static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restrict coverbuf, int coverwidth, int coverheight, int coverpitch, int mirw, int mirh, bool interlaced, const VSAPI *vsapi )
+static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, int mirw, int mirh, bool interlaced, const VSAPI *vsapi )
 {
     const T * __restrict srcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, plane));
     int            src_height = vsapi->getFrameHeight(src, plane);
     int            src_width = vsapi->getFrameWidth(src, plane);
-    int            src_pitch = vsapi->getStride(src, plane) / sizeof(T);
+    ptrdiff_t      src_pitch = vsapi->getStride(src, plane) / sizeof(T);
     coverpitch /= sizeof(T);
 
     int width2 = src_width + src_width + mirw + mirw - 2;
@@ -260,12 +251,12 @@ static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restri
 //-----------------------------------------------------------------------
 //
 template<typename T>
-static void CoverbufToFramePlane(const T * __restrict coverbuf, int coverwidth, int coverheight, int coverpitch, VSFrameRef *dst, int mirw, int mirh, bool interlaced, const VSAPI *vsapi )
+static void CoverbufToFramePlane(const T * __restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, VSFrameRef *dst, int mirw, int mirh, bool interlaced, const VSAPI *vsapi )
 {
     T *__restrict dstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 0));
     int      dst_height = vsapi->getFrameHeight(dst, 0);
     int      dst_width = vsapi->getFrameWidth(dst, 0);
-    int      dst_pitch = vsapi->getStride(dst, 0) / sizeof(T);
+    ptrdiff_t   dst_pitch = vsapi->getStride(dst, 0) / sizeof(T);
     coverpitch /= sizeof(T);
 
     const T * __restrict coverbuf1 = coverbuf + coverpitch * mirh + mirw;
@@ -306,10 +297,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
 
     const VSVideoInfo *srcvi = vsapi->getVideoInfo(node);
 
-    if (wintype == 9000)
-        planeBase = (srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
-    else
-        planeBase = (plane && srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
+    planeBase = (plane && srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
 
     nox = ((srcvi->width >> (plane ? srcvi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((srcvi->height >> (plane ? srcvi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
@@ -811,10 +799,7 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     if (oh < 0)
         oh = bh / 3;
 
-    if (wintype == 9000)
-        planeBase = (srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
-    else
-        planeBase = (plane && srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
+    planeBase = (plane && srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
 
     nox = ((srcvi->width >> (plane ? srcvi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((srcvi->height >> (plane ? srcvi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);

@@ -43,17 +43,17 @@ static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsa
     }
 }
 
-static inline void set_option_int64
+static inline void set_option_int
 (
-    int64_t     *opt,
-    int64_t      default_value,
+    int     *opt,
+    int      default_value,
     const char  *arg,
     const VSMap *in,
     const VSAPI *vsapi
 )
 {
     int e;
-    *opt = vsapi->mapGetInt( in, arg, 0, &e );
+    *opt = vsapi->mapGetIntSaturated( in, arg, 0, &e );
     if( e )
         *opt = default_value;
 }
@@ -85,24 +85,24 @@ static void VS_CC createFFT3DFilter
     float sigma1;
     float beta;
     bool process[3];
-    int64_t bw;
-    int64_t bh;
-    int64_t bt;
-    int64_t ow;
-    int64_t oh;
+    int bw;
+    int bh;
+    int bt;
+    int ow;
+    int oh;
     float   kratio;
     float   sharpen;
     float   scutoff;
     float   svr;
     float   smin;
     float   smax;
-    int64_t measure;
-    int64_t interlaced;
-    int64_t wintype;
-    int64_t pframe;
-    int64_t px;
-    int64_t py;
-    int64_t pshow;
+    int measure;
+    int interlaced;
+    int wintype;
+    int pframe;
+    int px;
+    int py;
+    int pshow;
     float   pcutoff;
     float   pfactor;
     float   sigma2;
@@ -112,7 +112,8 @@ static void VS_CC createFFT3DFilter
     float   dehalo;
     float   hr;
     float   ht;
-    int64_t ncpu;
+    int ncpu;
+
     try {
         int istat = fftwf_init_threads();
         if (istat == 0)
@@ -124,24 +125,24 @@ static void VS_CC createFFT3DFilter
 
         set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
         set_option_float( &beta,      1.0, "beta",       in, vsapi );
-        set_option_int64( &bw,          32, "bw",         in, vsapi );
-        set_option_int64( &bh,          32, "bh",         in, vsapi );
-        set_option_int64( &bt,          3, "bt",         in, vsapi );
-        set_option_int64( &ow,       bw/3, "ow",         in, vsapi );
-        set_option_int64( &oh,       bh/3, "oh",         in, vsapi );
+        set_option_int( &bw,          32, "bw",         in, vsapi );
+        set_option_int( &bh,          32, "bh",         in, vsapi );
+        set_option_int( &bt,          3, "bt",         in, vsapi );
+        set_option_int( &ow,       bw/3, "ow",         in, vsapi );
+        set_option_int( &oh,       bh/3, "oh",         in, vsapi );
         set_option_float( &kratio,    2.0, "kratio",     in, vsapi );
         set_option_float( &sharpen,     0, "sharpen",    in, vsapi );
         set_option_float( &scutoff,  0.3f, "scutoff",    in, vsapi );
         set_option_float( &svr,       1.0, "svr",        in, vsapi );
         set_option_float( &smin,      4.0, "smin",       in, vsapi );
         set_option_float( &smax,     20.0, "smax",       in, vsapi );
-        set_option_int64( &measure,     1, "measure",    in, vsapi );
-        set_option_int64( &interlaced,  0, "interlaced", in, vsapi );
-        set_option_int64( &wintype,     0, "wintype",    in, vsapi );
-        set_option_int64( &pframe,      0, "pframe",     in, vsapi );
-        set_option_int64( &px,          0, "px",         in, vsapi );
-        set_option_int64( &py,          0, "py",         in, vsapi );
-        set_option_int64( &pshow,       0, "pshow",      in, vsapi );
+        set_option_int( &measure,     1, "measure",    in, vsapi );
+        set_option_int( &interlaced,  0, "interlaced", in, vsapi );
+        set_option_int( &wintype,     0, "wintype",    in, vsapi );
+        set_option_int( &pframe,      0, "pframe",     in, vsapi );
+        set_option_int( &px,          0, "px",         in, vsapi );
+        set_option_int( &py,          0, "py",         in, vsapi );
+        set_option_int( &pshow,       0, "pshow",      in, vsapi );
         set_option_float( &pcutoff,  0.1f, "pcutoff",    in, vsapi );
         set_option_float( &pfactor,     0, "pfactor",    in, vsapi );
         set_option_float( &sigma2, sigma1, "sigma2",     in, vsapi );
@@ -151,7 +152,7 @@ static void VS_CC createFFT3DFilter
         set_option_float( &dehalo,      0, "dehalo",     in, vsapi );
         set_option_float( &hr,        2.0, "hr",         in, vsapi );
         set_option_float( &ht,       50.0, "ht",         in, vsapi );
-        set_option_int64( &ncpu,        1, "ncpu",       in, vsapi );    
+        set_option_int( &ncpu,        1, "ncpu",       in, vsapi );    
 
         if (bt < -1 || bt > 5)
             throw std::runtime_error{ "bt must be -1(Sharpen), 0(Kalman), 1,2,3,4,5(Wiener)" };

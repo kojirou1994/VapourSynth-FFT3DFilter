@@ -197,7 +197,7 @@ FFT3DFilter::FFT3DFilter
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
 pframe(_pframe), px(_px), py(_py), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
-dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu),
+dehalo(_dehalo), hr(_hr), ht(_ht),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
 outLast(nullptr, nullptr), covar(nullptr, nullptr),
 covarProcess(nullptr, nullptr), pattern2d(nullptr, nullptr),
@@ -231,9 +231,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     }
 
     howmanyblocks = nox * noy;
-
-    fftwf_plan_with_nthreads( ncpu );
-    fftwf_plan_with_nthreads( 1 );
 
     wsharpen = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
     wdehalo  = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
