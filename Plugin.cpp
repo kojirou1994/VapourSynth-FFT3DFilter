@@ -266,8 +266,10 @@ static void VS_CC createFFT3DFilter
                         1,
                         FFT3DFilter::GetFrame,
                         FFT3DFilter::Free,
-                        fmParallelRequests, 0, mainFilter, core
+                        bt == 0 ? fmParallelRequests : fmParallel, 0, mainFilter, core
                     );
+
+                    //vsapi->setInternalFilterRelation(tmp, &transformednode, 1);
 
                     VSNodeRef *mainnode = vsapi->mapGetNode(tmp, "clip", 0, nullptr);
                     vsapi->clearMap(tmp);
@@ -284,6 +286,8 @@ static void VS_CC createFFT3DFilter
                         FFT3DFilterInvTransform::Free,
                         fmParallelRequests, 0, invtransform, core
                     );
+
+                    //vsapi->setInternalFilterRelation(vi->format.numPlanes == 1 ? out : outtmp, &mainnode, 1);
                 } else {
                     vsapi->mapSetNode(outtmp, "clip", node, paAppend);
                 }

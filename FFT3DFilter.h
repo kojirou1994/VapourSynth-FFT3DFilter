@@ -102,7 +102,7 @@ private:
     int   ncpu;     /* number of threads - v2.0 */
 
     /* additional parameterss */
-    std::unique_ptr<float[], decltype(&fftw_free)> in;
+
     const VSFrameRef *gridsample;
     int nox, noy;
     int outwidth;

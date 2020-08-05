@@ -197,7 +197,7 @@ FFT3DFilter::FFT3DFilter
 kratio(_kratio), sharpen(_sharpen), scutoff(_scutoff), svr(_svr), smin(_smin), smax(_smax),
 pframe(_pframe), px(_px), py(_py), pfactor(_pfactor),
 sigma2(_sigma2), sigma3(_sigma3), sigma4(_sigma4), degrid(_degrid),
-dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu), in(nullptr, nullptr),
+dehalo(_dehalo), hr(_hr), ht(_ht), ncpu(_ncpu),
 wsharpen(nullptr, nullptr), wdehalo(nullptr, nullptr),
 outLast(nullptr, nullptr), covar(nullptr, nullptr),
 covarProcess(nullptr, nullptr), pattern2d(nullptr, nullptr),
@@ -217,8 +217,6 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     mirw = bw - ow; /* set mirror size as block interval */
     mirh = bh - oh;
 
-    int insize = bw * bh * nox * noy;
-    in = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(insize), fftwf_free);
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;    /* must be even for SSE - v1.7 */
     outpitch = outpitchelems * vi->format.bytesPerSample;
