@@ -231,8 +231,8 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     wsharpen = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
     wdehalo  = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
 
-    GetSharpenWindow(bw, bh, outwidth, outpitchelems, svr, scutoff, wsharpen.get());
-    GetDeHaloWindow(bw, bh, outwidth, outpitchelems, hr, svr, wdehalo.get());
+    GetSharpenWindow(bw, bh, outwidth, outpitchelems, svr, scutoff, sharpen, wsharpen.get());
+    GetDeHaloWindow(bw, bh, outwidth, outpitchelems, hr, svr, dehalo, wdehalo.get());
 
     norm = 1.0f / (bw * bh); /* do not forget set FFT normalization factor */
 

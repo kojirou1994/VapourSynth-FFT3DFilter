@@ -115,7 +115,7 @@ void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynx
     }
 }
 
-void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float *wsharpen) {
+void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float sharpen, float *wsharpen) {
     /* window for sharpen */
     for (int j = 0; j < bh; j++) {
         int dj = j;
@@ -124,12 +124,12 @@ void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr
         float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2)); /* v1.7 */
         for (int i = 0; i < outwidth; i++) {
             float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* distance_2 - v1.7 */
-            wsharpen[i + j * outpitchelems] = 1 - exp(-d2 / (2 * scutoff * scutoff));
+            wsharpen[i + j * outpitchelems] = (1 - exp(-d2 / (2 * scutoff * scutoff))) * sharpen;
         }
     }
 }
 
-void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float *wdehalo) {
+void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float dehalo, float *wdehalo) {
     /* window for dehalo - added in v1.9 */
     float wmax = 0;
     for (int j = 0; j < bh; j++) {
@@ -148,7 +148,8 @@ void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, 
 
     for (int j = 0; j < bh; j++) {
         for (int i = 0; i < outwidth; i++) {
-            wdehalo[i + j * outpitchelems] /= wmax; /* normalize */
+            wdehalo[i + j * outpitchelems] *= dehalo;
+            wdehalo[i + j * outpitchelems] /= wmax; 
         }
     }
 }

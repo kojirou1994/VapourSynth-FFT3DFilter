@@ -32,8 +32,8 @@ void ApplyWiener2D_C
 (
     fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
-    float sharpen, float sigmaSquaredSharpenMin,
-    float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n
+    float sharpen_, float sigmaSquaredSharpenMin,
+    float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo_, const float *wdehalo, float ht2n
 )
 {
     // this function take 25% CPU time and may be easy optimized for AMD Athlon 3DNOW assembler
@@ -43,7 +43,7 @@ void ApplyWiener2D_C
     float WienerFactor;
 
 
-    if (sharpen == 0 && dehalo == 0)// no sharpen, no dehalo
+    if (sharpen_ == 0 && dehalo_ == 0)// no sharpen, no dehalo
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -60,7 +60,7 @@ void ApplyWiener2D_C
             }
         }
     }
-    else if (sharpen != 0 && dehalo==0) // sharpen
+    else if (sharpen_ != 0 && dehalo_==0) // sharpen
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -70,7 +70,7 @@ void ApplyWiener2D_C
                 {
                     psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]) + 1e-15f;// power spectrum density
                     WienerFactor = std::max((psd - sigmaSquaredNoiseNormed)/psd, lowlimit); // limited Wiener filter
-                    WienerFactor *= 1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ); // sharpen factor - changed in v.1.1
+                    WienerFactor *= 1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ); // sharpen factor - changed in v.1.1
                     outcur[w][0] *= WienerFactor; // apply filter on real  part
                     outcur[w][1] *= WienerFactor; // apply filter on imaginary part
                 }
@@ -80,7 +80,7 @@ void ApplyWiener2D_C
             wsharpen -= outpitchelems*bh;
         }
     }
-    else if (sharpen == 0 && dehalo != 0)
+    else if (sharpen_ == 0 && dehalo_ != 0)
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -90,7 +90,7 @@ void ApplyWiener2D_C
                 {
                     psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]) + 1e-15f;// power spectrum density
                     WienerFactor = std::max((psd - sigmaSquaredNoiseNormed)/psd, lowlimit); // limited Wiener filter
-                    WienerFactor *= (psd + ht2n)/((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    WienerFactor *= (psd + ht2n)/((psd + ht2n) + wdehalo[w] * psd );
                     outcur[w][0] *= WienerFactor; // apply filter on real  part
                     outcur[w][1] *= WienerFactor; // apply filter on imaginary part
                 }
@@ -100,7 +100,7 @@ void ApplyWiener2D_C
             wdehalo -= outpitchelems*bh;
         }
     }
-    else if (sharpen != 0 && dehalo != 0)
+    else if (sharpen_ != 0 && dehalo_ != 0)
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -110,8 +110,8 @@ void ApplyWiener2D_C
                 {
                     psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]) + 1e-15f;// power spectrum density
                     WienerFactor = std::max((psd - sigmaSquaredNoiseNormed)/psd, lowlimit); // limited Wiener filter
-                    WienerFactor *= 1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) *
-                        (psd + ht2n)/((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    WienerFactor *= 1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) *
+                        (psd + ht2n)/((psd + ht2n) + wdehalo[w] * psd );
                     outcur[w][0] *= WienerFactor; // apply filter on real  part
                     outcur[w][1] *= WienerFactor; // apply filter on imaginary part
                 }
@@ -657,15 +657,15 @@ void ApplyKalman_C
 void Sharpen_C
 (
     fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
-    int howmanyblocks, float sharpen, float sigmaSquaredSharpenMin,
-    float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n
+    int howmanyblocks, float sharpen_, float sigmaSquaredSharpenMin,
+    float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo_, const float *wdehalo, float ht2n
 )
 {
     int h,w, block;
     float psd;
     float sfact;
 
-    if (sharpen != 0 && dehalo==0)
+    if (sharpen_ != 0 && dehalo_==0)
     {
 
         for (block =0; block <howmanyblocks; block++)
@@ -676,7 +676,7 @@ void Sharpen_C
                 {
                     psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]);
                     //improved sharpen mode to prevent grid artifactes and to limit sharpening both fo low and high amplitudes
-                    sfact = (1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) ) ;
+                    sfact = (1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) ) ;
                     // sharpen factor - changed in v1.1c
                     outcur[w][0] *= sfact;
                     outcur[w][1] *= sfact;
@@ -687,7 +687,7 @@ void Sharpen_C
             wsharpen -= outpitchelems*bh;
         }
     }
-    else if (sharpen == 0 && dehalo != 0)
+    else if (sharpen_ == 0 && dehalo_ != 0)
     {
 
         for (block =0; block <howmanyblocks; block++)
@@ -698,7 +698,7 @@ void Sharpen_C
                 {
                     psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]);
                     //improved sharpen mode to prevent grid artifactes and to limit sharpening both fo low and high amplitudes
-                    sfact = (psd + ht2n)/((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    sfact = (psd + ht2n)/((psd + ht2n) + wdehalo[w] * psd );
                     outcur[w][0] *= sfact;
                     outcur[w][1] *= sfact;
                 }
@@ -708,7 +708,7 @@ void Sharpen_C
             wdehalo -= outpitchelems*bh;
         }
     }
-    else if (sharpen != 0 && dehalo != 0)
+    else if (sharpen_ != 0 && dehalo_ != 0)
     {
 
         for (block =0; block <howmanyblocks; block++)
@@ -719,8 +719,8 @@ void Sharpen_C
                 {
                     psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]);
                     //improved sharpen mode to prevent grid artifactes and to limit sharpening both fo low and high amplitudes
-                    sfact = (1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) ) *
-                        (psd + ht2n) / ((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    sfact = (1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) ) *
+                        (psd + ht2n) / ((psd + ht2n) + wdehalo[w] * psd );
                     outcur[w][0] *= sfact;
                     outcur[w][1] *= sfact;
                 }
@@ -742,16 +742,16 @@ void Sharpen_C
 void Sharpen_degrid_C
 (
     fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
-    int howmanyblocks, float sharpen, float sigmaSquaredSharpenMin,
+    int howmanyblocks, float sharpen_, float sigmaSquaredSharpenMin,
     float sigmaSquaredSharpenMax, const float *wsharpen,
-    float degrid, const fftwf_complex *gridsample, float dehalo, const float *wdehalo, float ht2n
+    float degrid, const fftwf_complex *gridsample, float dehalo_, const float *wdehalo, float ht2n
 )
 {
     int h,w, block;
     float psd;
     float sfact;
 
-    if (sharpen != 0 && dehalo==0)
+    if (sharpen_ != 0 && dehalo_==0)
     {
 
         for (block =0; block <howmanyblocks; block++)
@@ -768,7 +768,7 @@ void Sharpen_degrid_C
                     psd = (re*re + im*im) + 1e-15f;// power spectrum density
 //                    psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]);
                     //improved sharpen mode to prevent grid artifactes and to limit sharpening both fo low and high amplitudes
-                    sfact = (1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) )) ;
+                    sfact = (1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) )) ;
                     // sharpen factor - changed in v1.1c
                     re *= sfact; // apply filter on real  part
                     im *= sfact; // apply filter on imaginary part
@@ -783,7 +783,7 @@ void Sharpen_degrid_C
             gridsample -= outpitchelems*bh; // restore pointer to only valid first block - bug fixed in v1.8.1
         }
     }
-    if (sharpen == 0 && dehalo != 0)
+    if (sharpen_ == 0 && dehalo_ != 0)
     {
 
         for (block =0; block <howmanyblocks; block++)
@@ -800,7 +800,7 @@ void Sharpen_degrid_C
                     psd = (re*re + im*im) + 1e-15f;// power spectrum density
 //                    psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]);
                     //improved sharpen mode to prevent grid artifactes and to limit sharpening both fo low and high amplitudes
-                    sfact = (psd + ht2n) / ((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    sfact = (psd + ht2n) / ((psd + ht2n) + wdehalo[w] * psd );
                     re *= sfact; // apply filter on real  part
                     im *= sfact; // apply filter on imaginary part
                     outcur[w][0] = re + gridcorrection0;
@@ -816,7 +816,7 @@ void Sharpen_degrid_C
             gridsample -= outpitchelems*bh; // restore pointer to only valid first block - bug fixed in v1.8.1
         }
     }
-    if (sharpen != 0 && dehalo != 0)
+    if (sharpen_ != 0 && dehalo_ != 0)
     {
 
         for (block =0; block <howmanyblocks; block++)
@@ -833,8 +833,8 @@ void Sharpen_degrid_C
                     psd = (re*re + im*im) + 1e-15f;// power spectrum density
 //                    psd = (outcur[w][0]*outcur[w][0] + outcur[w][1]*outcur[w][1]);
                     //improved sharpen mode to prevent grid artifactes and to limit sharpening both fo low and high amplitudes
-                    sfact = (1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) )) *
-                        (psd + ht2n)/((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    sfact = (1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) )) *
+                        (psd + ht2n)/((psd + ht2n) + wdehalo[w] * psd );
                     re *= sfact; // apply filter on real  part
                     im *= sfact; // apply filter on imaginary part
                     outcur[w][0] = re + gridcorrection0;
@@ -857,9 +857,9 @@ void ApplyWiener2D_degrid_C
 (
     fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
-    float sharpen, float sigmaSquaredSharpenMin,
+    float sharpen_, float sigmaSquaredSharpenMin,
     float sigmaSquaredSharpenMax, const float *wsharpen,
-    float degrid, const fftwf_complex *gridsample, float dehalo, const float *wdehalo, float ht2n
+    float degrid, const fftwf_complex *gridsample, float dehalo_, const float *wdehalo, float ht2n
 )
 {
     // this function take 25% CPU time and may be easy optimized for AMD Athlon 3DNOW assembler
@@ -869,7 +869,7 @@ void ApplyWiener2D_degrid_C
     float WienerFactor;
     float gridfraction;
 
-    if (sharpen == 0  && dehalo == 0)// no sharpen, no dehalo
+    if (sharpen_ == 0  && dehalo_ == 0)// no sharpen, no dehalo
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -896,7 +896,7 @@ void ApplyWiener2D_degrid_C
             gridsample -= outpitchelems*bh; // restore pointer to only valid first block
         }
     }
-    else if (sharpen != 0 && dehalo==0) // sharpen
+    else if (sharpen_ != 0 && dehalo_ ==0) // sharpen
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -912,7 +912,7 @@ void ApplyWiener2D_degrid_C
                     float corrected1 = outcur[w][1] - gridcorrection1;
                     psd = (corrected0*corrected0 + corrected1*corrected1 ) + 1e-15f;// power spectrum density
                     WienerFactor = std::max((psd - sigmaSquaredNoiseNormed)/psd, lowlimit); // limited Wiener filter
-                    WienerFactor *= 1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ); // sharpen factor - changed in v.1.1
+                    WienerFactor *= 1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ); // sharpen factor - changed in v.1.1
 //                    outcur[w][0] *= WienerFactor; // apply filter on real  part
 //                    outcur[w][1] *= WienerFactor; // apply filter on imaginary part
                     corrected0 *= WienerFactor; // apply filter on real  part
@@ -928,7 +928,7 @@ void ApplyWiener2D_degrid_C
             gridsample -= outpitchelems*bh; // restore pointer to only valid first block
         }
     }
-    else if (sharpen == 0 && dehalo != 0)
+    else if (sharpen_ == 0 && dehalo_ != 0)
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -944,7 +944,7 @@ void ApplyWiener2D_degrid_C
                     float corrected1 = outcur[w][1] - gridcorrection1;
                     psd = (corrected0*corrected0 + corrected1*corrected1 ) + 1e-15f;// power spectrum density
                     WienerFactor = std::max((psd - sigmaSquaredNoiseNormed)/psd, lowlimit); // limited Wiener filter
-                    WienerFactor *= (psd + ht2n)/((psd + ht2n) + dehalo*wdehalo[w] * psd );
+                    WienerFactor *= (psd + ht2n)/((psd + ht2n) + wdehalo[w] * psd );
 //                    outcur[w][0] *= WienerFactor; // apply filter on real  part
 //                    outcur[w][1] *= WienerFactor; // apply filter on imaginary part
                     corrected0 *= WienerFactor; // apply filter on real  part
@@ -960,7 +960,7 @@ void ApplyWiener2D_degrid_C
             gridsample -= outpitchelems*bh; // restore pointer to only valid first block
         }
     }
-    else if (sharpen != 0 && dehalo != 0)
+    else if (sharpen_ != 0 && dehalo_ != 0)
     {
         for (block =0; block <howmanyblocks; block++)
         {
@@ -976,8 +976,8 @@ void ApplyWiener2D_degrid_C
                     float corrected1 = outcur[w][1] - gridcorrection1;
                     psd = (corrected0*corrected0 + corrected1*corrected1 ) + 1e-15f;// power spectrum density
                     WienerFactor = std::max((psd - sigmaSquaredNoiseNormed)/psd, lowlimit); // limited Wiener filter
-                    WienerFactor *= 1 + sharpen*wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) *
-                        (psd + ht2n)/((psd + ht2n)+ dehalo*wdehalo[w] * psd );
+                    WienerFactor *= 1 + wsharpen[w]*sqrt( psd*sigmaSquaredSharpenMax/((psd + sigmaSquaredSharpenMin)*(psd + sigmaSquaredSharpenMax)) ) *
+                        (psd + ht2n)/((psd + ht2n)+ wdehalo[w] * psd );
 //                    outcur[w][0] *= WienerFactor; // apply filter on real  part
 //                    outcur[w][1] *= WienerFactor; // apply filter on imaginary part
                     corrected0 *= WienerFactor; // apply filter on real  part
