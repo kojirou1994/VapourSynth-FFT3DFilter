@@ -28,9 +28,6 @@
 
 #include <VapourSynth4.h>
 
-void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float sharpen, float *wsharpen);
-void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float dehalo, float *wdehalo);
-
 /** declarations of filtering functions: **/
 /* C */
 void ApplyWiener2D_C(fftwf_complex *out, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n);
@@ -58,12 +55,6 @@ void ApplyPattern3D2_degrid_C(fftwf_complex *outcur, const fftwf_complex *outpre
 void ApplyPattern3D3_degrid_C(fftwf_complex *out, const fftwf_complex *outprev, const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
 void ApplyPattern3D4_degrid_C(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
 void ApplyPattern3D5_degrid_C(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample);
-
-template<typename T>
-static void fft3d_memset(T *dst, T val, size_t count) {
-    for (size_t i = 0; i < count; i++)
-        dst[i] = val;
-}
 
 class FFT3DFilterTransform;
 

@@ -36,6 +36,12 @@
 #include <stdexcept>
 #include "FFT3DFilter.h"
 
+template<typename T>
+static void fft3d_memset(T *dst, T val, size_t count) {
+    for (size_t i = 0; i < count; i++)
+        dst[i] = val;
+}
+
 static void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, float *wanyl, float *wanyr) {
     constexpr float pi = 3.1415926535897932384626433832795f;
     if (wintype == 0) {  
@@ -111,45 +117,6 @@ static void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float
             wsynyl[i] = wsynyl[i] * wsynyl[i];
             wsynyr[i] = cosf(pi * (i + 0.5f) / (oh * 2));
             wsynyr[i] = wsynyr[i] * wsynyr[i];
-        }
-    }
-}
-
-void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float sharpen, float *wsharpen) {
-    /* window for sharpen */
-    for (int j = 0; j < bh; j++) {
-        int dj = j;
-        if (j >= bh / 2)
-            dj = bh - j;
-        float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2)); /* v1.7 */
-        for (int i = 0; i < outwidth; i++) {
-            float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* distance_2 - v1.7 */
-            wsharpen[i + j * outpitchelems] = (1 - exp(-d2 / (2 * scutoff * scutoff))) * sharpen;
-        }
-    }
-}
-
-void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float dehalo, float *wdehalo) {
-    /* window for dehalo - added in v1.9 */
-    float wmax = 0;
-    for (int j = 0; j < bh; j++) {
-        int dj = j;
-        if (j >= bh / 2)
-            dj = bh - j;
-        float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2));
-        for (int i = 0; i < outwidth; i++) {
-            float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* squared distance in frequency domain */
-            //float d1 = sqrt( d2 );
-            wdehalo[i + j * outpitchelems] = exp(-0.7f * d2 * hr * hr) - exp(-d2 * hr * hr); /* some window with max around 1/hr, small at low and high frequencies */
-            if (wdehalo[i + j * outpitchelems] > wmax)
-                wmax = wdehalo[i]; /* for normalization */
-        }
-    }
-
-    for (int j = 0; j < bh; j++) {
-        for (int i = 0; i < outwidth; i++) {
-            wdehalo[i + j * outpitchelems] *= dehalo;
-            wdehalo[i + j * outpitchelems] /= wmax; 
         }
     }
 }

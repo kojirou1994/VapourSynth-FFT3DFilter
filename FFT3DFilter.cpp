@@ -115,6 +115,48 @@ static void fill_complex( fftwf_complex *plane, int outsize, float realvalue, fl
         plane[w][1] = imgvalue;
     }
 }
+
+//-------------------------------------------------------------------
+
+static void GetSharpenWindow(int bw, int bh, int outwidth, int outpitchelems, float svr, float scutoff, float sharpen, float *wsharpen) {
+    /* window for sharpen */
+    for (int j = 0; j < bh; j++) {
+        int dj = j;
+        if (j >= bh / 2)
+            dj = bh - j;
+        float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2)); /* v1.7 */
+        for (int i = 0; i < outwidth; i++) {
+            float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* distance_2 - v1.7 */
+            wsharpen[i + j * outpitchelems] = (1 - exp(-d2 / (2 * scutoff * scutoff))) * sharpen;
+        }
+    }
+}
+
+static void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, float hr, float svr, float dehalo, float *wdehalo) {
+    /* window for dehalo - added in v1.9 */
+    float wmax = 0;
+    for (int j = 0; j < bh; j++) {
+        int dj = j;
+        if (j >= bh / 2)
+            dj = bh - j;
+        float d2v = float(dj * dj) * (svr * svr) / ((bh / 2) * (bh / 2));
+        for (int i = 0; i < outwidth; i++) {
+            float d2 = d2v + float(i * i) / ((bw / 2) * (bw / 2)); /* squared distance in frequency domain */
+            //float d1 = sqrt( d2 );
+            wdehalo[i + j * outpitchelems] = exp(-0.7f * d2 * hr * hr) - exp(-d2 * hr * hr); /* some window with max around 1/hr, small at low and high frequencies */
+            if (wdehalo[i + j * outpitchelems] > wmax)
+                wmax = wdehalo[i]; /* for normalization */
+        }
+    }
+
+    for (int j = 0; j < bh; j++) {
+        for (int i = 0; i < outwidth; i++) {
+            wdehalo[i + j * outpitchelems] *= dehalo;
+            wdehalo[i + j * outpitchelems] /= wmax;
+        }
+    }
+}
+
 //-------------------------------------------------------------------
 static void SigmasToPattern( float sigma, float sigma2, float sigma3, float sigma4, int bh, int outwidth, int outpitchelems, float norm, float *pattern2d )
 {
