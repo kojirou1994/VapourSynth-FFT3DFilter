@@ -76,7 +76,7 @@ private:
     std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
     int coverheight;
-    int coverpitch;
+    ptrdiff_t coverpitch;
 
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
@@ -126,7 +126,7 @@ private:
     std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
     int coverwidth;
     int coverheight;
-    int coverpitch;
+    ptrdiff_t coverpitch;
 
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
@@ -215,7 +215,7 @@ private:
     const VSFrameRef *gridsample;
     int nox, noy;
     int outwidth;
-    int outpitch;
+    ptrdiff_t outpitch;
     int outpitchelems; /* v.1.7 */
 
     int outsize;
