@@ -1480,7 +1480,7 @@ void ApplyPattern3D5_degrid_C
                 float gridcorrection0_5 = gridfraction*gridsample[w][0]*5;
                 float gridcorrection1_5 = gridfraction*gridsample[w][1]*5;
                 // dft 3d (very short - 5 points)
-                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + + outcur[w][0]; // fixme, double plus?
+                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + outcur[w][0]; // fixme, double plus?
                 float dif = (- outprev2[w][1] + outnext2[w][1])*sin72 + (outprev[w][1] - outnext[w][1])*sin144;
                 fp2r = sum + dif; // real prev2
                 fn2r = sum - dif; // real next2
@@ -1594,7 +1594,7 @@ void ApplyWiener3D5_degrid_C
 //                    + outnext[w][1]*cos72 + outnext[w][0]*sin72 + outnext2[w][1]*cos144 + outnext2[w][0]*sin144; // im prev
 //                fni = outprev2[w][1]*cos144 + outprev2[w][0]*sin144 + outprev[w][1]*cos72 + outprev[w][0]*sin72 + outcur[w][1]
 //                    + outnext[w][1]*cos72 - outnext[w][0]*sin72 + outnext2[w][1]*cos144 - outnext2[w][0]*sin144; // im prev
-                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + + outcur[w][0];
+                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + outcur[w][0];
                 float dif = (- outprev2[w][1] + outnext2[w][1])*sin72 + (outprev[w][1] - outnext[w][1])*sin144;
                 fp2r = sum + dif; // real prev2
                 fn2r = sum - dif; // real next2
@@ -1685,7 +1685,7 @@ void ApplyPattern3D5_C
             for (w=0; w<outwidth; w++) //
             {
                 // dft 3d (very short - 5 points)
-                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + + outcur[w][0];
+                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + outcur[w][0];
                 float dif = (- outprev2[w][1] + outnext2[w][1])*sin72 + (outprev[w][1] - outnext[w][1])*sin144;
                 fp2r = sum + dif; // real prev2
                 fn2r = sum - dif; // real next2
@@ -1775,7 +1775,7 @@ void ApplyWiener3D5_C
             for (w=0; w<outwidth; w++) //
             {
                 // dft 3d (very short - 5 points)
-                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + + outcur[w][0];
+                float sum = (  outprev2[w][0] + outnext2[w][0])*cos72 + (outprev[w][0] + outnext[w][0])*cos144 + outcur[w][0];
                 float dif = (- outprev2[w][1] + outnext2[w][1])*sin72 + (outprev[w][1] - outnext[w][1])*sin144;
                 fp2r = sum + dif; // real prev2
                 fn2r = sum - dif; // real next2
