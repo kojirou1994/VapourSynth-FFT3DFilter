@@ -18,11 +18,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *****************************************************************************/
 
+#include "FFT3DFilter.h"
+#include <VapourSynth4.h>
+#include <VSHelper4.h>
 #include <string>
 #include <stdexcept>
-
-#include <VapourSynth4.h>
-#include "FFT3DFilter.h"
 
 static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsapi) {
     int m = vsapi->mapNumElements(in, "planes");
@@ -155,16 +155,21 @@ static void VS_CC createFFT3DFilter
         set_option_int( &ncpu,        1, "ncpu",       in, vsapi );    
 
         if (bt < -1 || bt > 5)
-            throw std::runtime_error{ "bt must be -1(Sharpen), 0(Kalman), 1,2,3,4,5(Wiener)" };
+            throw std::runtime_error{ "bt must be -1(Sharpen), 0(Kalman) or 1,2,3,4,5(Wiener)" };
         if (ow * 2 > bw)
             throw std::runtime_error{ "Must not be 2*ow > bw" };
         if (oh * 2 > bh)
             throw std::runtime_error{ "Must not be 2*oh > bh" };
         if (beta < 1)
-            throw std::runtime_error{ "beta must be not less 1.0" };
+            throw std::runtime_error{ "beta must be no less than 1.0" };
 
         VSNodeRef *node = vsapi->mapGetNode(in, "clip", 0, nullptr);
         const VSVideoInfo *vi = vsapi->getVideoInfo(node);
+
+        if ((vi->format.sampleType == stFloat && vi->format.bitsPerSample != 32) || (vi->format.sampleType == stInteger && vi->format.bitsPerSample > 16) || !vsh::isConstantVideoFormat(vi)) {
+            vsapi->freeNode(node);
+            throw std::runtime_error{ "Input clip must be 8-16 bit integer or 32 bit float constant format" };
+        }
 
         int num_process = 0;
         for (int i = 0; i < vi->format.numPlanes; i++)

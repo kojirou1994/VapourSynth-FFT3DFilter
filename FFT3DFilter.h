@@ -20,12 +20,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *****************************************************************************/
 
-#include <string>
 #include <memory>
-#include <vector>
-#include <cassert>
 #include <fftw3.h>
-
 #include <VapourSynth4.h>
 
 /** declarations of filtering functions: **/

@@ -29,12 +29,12 @@
  *
  *****************************************************************************/
 
+
+#include "FFT3DFilter.h"
 #include <cstring>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <stdexcept>
-#include "FFT3DFilter.h"
 
 //-------------------------------------------------------------------------------------------
 static void ApplyWiener2D( fftwf_complex *out, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed,

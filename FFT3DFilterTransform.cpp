@@ -29,12 +29,11 @@
  *
  *****************************************************************************/
 
+#include "FFT3DFilter.h"
 #include <cstring>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <stdexcept>
-#include "FFT3DFilter.h"
 
 template<typename T>
 static void fft3d_memset(T *dst, T val, size_t count) {
