@@ -715,7 +715,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
 
     const VSVideoInfo *srcvi = vsapi->getVideoInfo(node);
 
-    planeBase = (plane && srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
+    planeBase = (plane > 0 && srcvi->format.sampleType == stInteger && srcvi->format.colorFamily == cfYUV) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
 
     nox = ((srcvi->width >> (plane ? srcvi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((srcvi->height >> (plane ? srcvi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
@@ -974,7 +974,7 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     if (oh < 0)
         oh = bh / 3;
 
-    planeBase = (plane && srcvi->format.sampleType == stInteger) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
+    planeBase = (plane > 0 && srcvi->format.sampleType == stInteger && srcvi->format.colorFamily == cfYUV) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
 
     nox = ((srcvi->width >> (plane ? srcvi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
     noy = ((srcvi->height >> (plane ? srcvi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
@@ -1107,7 +1107,7 @@ VSFrameRef *FFT3DFilterPShow::GetFrame(const VSFrameRef *src, VSCore *core, cons
     VSFrameRef *dst = vsapi->newVideoFrame2(&vi->format, vi->width, vi->height, srcs, planesrc, src, core);
 
    
-    int planeBase = (vi->format.sampleType == stInteger) ? (1 << (vi->format.bitsPerSample - 1)) : 0;
+    int planeBase = (plane > 0 && vi->format.sampleType == stInteger && vi->format.colorFamily == cfYUV) ? (1 << (vi->format.bitsPerSample - 1)) : 0;
 
     if (vi->format.bytesPerSample == 1)
         PutPatternOnly2<uint8_t>(vsapi->getReadPtr(src, plane), vsapi->getWritePtr(dst, plane), 128, vsapi->getStride(src, plane), vsapi->getFrameHeight(src, plane), bw, bh, ow, oh, pxf, pyf);
