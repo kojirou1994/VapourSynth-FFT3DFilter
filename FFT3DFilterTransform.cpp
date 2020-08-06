@@ -271,6 +271,9 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
 
     float *__restrict inp = inp0;
 
+    if constexpr (std::is_floating_point_v<T>)
+        planeBase = 0;
+
     ihy = 0; /* first top (big non-overlapped) part */
     {
         for (int h = 0; h < oh; h++) {
@@ -516,7 +519,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             inp = inp0 + h * bw;
             for (w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase)); /* Copy each byte from float array to dest with windows */
                 else
                     dstp[w] = inp[w] * norm;
@@ -527,7 +530,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             {
                 for (w = 0; w < ow; w++)   /* half line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));  /* overlapped Copy */
                     else
                         dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
@@ -536,7 +539,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 dstp += ow;
                 for (w = 0; w < bw - ow - ow; w++)   /* first half line of first block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));   /* Copy each byte from float array to dest with windows */
                     else
                         dstp[w] = inp[w] * norm;
@@ -546,7 +549,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             for (w = 0; w < ow; w++)   /* last half line of last block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                 else
                     dstp[w] = inp[w] * norm;
@@ -569,7 +572,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
 
             for (w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));   /* y overlapped */
                 else
                     dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
@@ -580,7 +583,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             {
                 for (w = 0; w < ow; w++)   /* half overlapped line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
                             + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh)) + planeBase));   /* x overlapped */
                     else
@@ -591,7 +594,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 dstp += ow;
                 for (w = 0; w < bw - ow - ow; w++)   /* double minus - half non-overlapped line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));
                     else
                         dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
@@ -601,7 +604,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             for (w = 0; w < ow; w++)   /* last half line of last block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));
                 else
                     dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
@@ -616,7 +619,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh)*bw + h * bw + yoffset;
             for (w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                 else
                     dstp[w] = inp[w] * norm;
@@ -627,7 +630,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             {
                 for (w = 0; w < ow; w++)   /* half overlapped line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));   /* x overlapped */
                     else
                         dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
@@ -636,7 +639,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 dstp += ow;
                 for (w = 0; w < bw - ow - ow; w++)   /* half non-overlapped line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                     else
                         dstp[w] = inp[w] * norm;
@@ -646,7 +649,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             for (w = 0; w < ow; w++)   /* last half line of last block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                 else
                     dstp[w] = inp[w] * norm;
@@ -664,7 +667,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
             for (w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                 else
                     dstp[w] = inp[w] * norm;
@@ -675,7 +678,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             {
                 for (w = 0; w < ow; w++)   /* half line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));  /* overlapped Copy */
                     else
                         dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
@@ -684,7 +687,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 dstp += ow;
                 for (w = 0; w < bw - ow - ow; w++)   /* half line of block */
                 {
-                    if constexpr (std::is_integral<T>::value)
+                    if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                     else
                         dstp[w] = inp[w] * norm;
@@ -694,7 +697,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             for (w = 0; w < ow; w++)   /* last half line of last block */
             {
-                if constexpr (std::is_integral<T>::value)
+                if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
                 else
                     dstp[w] = inp[w] * norm;
