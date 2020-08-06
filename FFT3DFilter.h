@@ -168,6 +168,7 @@ private:
     int mirh; /* mirror height for padding */
 
     VSVideoInfo dstvi;
+    VSVideoInfo outvi;
 
     int planeBase;
 
@@ -186,7 +187,7 @@ private:
     template<typename T>
     void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, int src_pitch, int planeBase);
 public:
-    VSVideoInfo outvi; // fixme, hie behind a fucntion or something
+    const VSVideoInfo *GetOutputVI() const { return &outvi; };
 
     FFT3DFilterTransform(bool pshow, VSNodeRef *node, int plane, int wintype, int bw, int bh, int ow, int oh, int px, int py, float pcutoff, float degrid, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
     const VSFrameRef *GetGridSample(VSCore *core, const VSAPI *vsapi);
@@ -219,13 +220,15 @@ private:
     int mirw; /* mirror width for padding */
     int mirh; /* mirror height for padding */
 
-    int planeBase; // fixme, added as a constant before transform and remove it again after inverse transform, pointless?
+    int planeBase;
 
     int nox, noy;
     int outwidth;
     int outpitchelems; /* v.1.7 */
 
     float norm; /* normalization factor */
+
+    VSVideoInfo dstvi;
 
     std::unique_ptr<float[]> wsynxl;
     std::unique_ptr<float[]> wsynxr;
@@ -239,7 +242,7 @@ private:
     void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__restrict dstp0, int dst_pitch, int planeBase, int maxval);
 
 public:
-    VSVideoInfo dstvi; // fixme, hide
+    const VSVideoInfo *GetOutputVI() const { return &dstvi; };
 
     FFT3DFilterInvTransform(VSNodeRef *node, const VSVideoInfo *vi, int plane, int wintype, int bw, int bh, int ow, int oh, bool interlaced, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi);
 

@@ -493,7 +493,7 @@ VSFrameRef *FFT3DFilterTransform::GetPShowInfo(const VSFrameRef *src, VSCore *co
     }
 
     float psigma;
-    std::unique_ptr<float[], decltype(&fftw_free)> pattern2d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free); //FIXME, dummy allocation due to 
+    std::unique_ptr<float[], decltype(&fftw_free)> pattern2d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
     SetPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(transformed, 0)), outwidth, outpitchelems, bh, nox, noy, pxf, pyf, pwin.get(), pattern2d.get(), psigma, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
 
     vsapi->freeFrame(transformed);
@@ -814,7 +814,6 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     dstvi.height = (srcvi->height >> (plane ? srcvi->format.subSamplingH : 0));
     vsapi->queryVideoFormat(&dstvi.format, cfGray, srcvi->format.sampleType, srcvi->format.bitsPerSample, 0, 0, core);
 
-    // fixme, use the fftw allocation function?
     const VSVideoInfo *inputvi = vsapi->getVideoInfo(node);
     VSFrameRef *src = vsapi->newVideoFrame(&inputvi->format, inputvi->width, inputvi->height, nullptr, core);
 

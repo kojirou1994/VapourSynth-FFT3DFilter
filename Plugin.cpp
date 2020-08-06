@@ -234,7 +234,7 @@ static void VS_CC createFFT3DFilter
                     (
                         tmp,
                         ("FFT3DFilterTrans" + std::to_string(plane)).c_str(),
-                        &transform->outvi,
+                        transform->GetOutputVI(),
                         1,
                         FFT3DFilterTransform::GetFrame,
                         FFT3DFilterTransform::Free,
@@ -281,7 +281,7 @@ static void VS_CC createFFT3DFilter
                     (
                         vi->format.numPlanes == 1 ? out : tmp,
                         ("FFT3DFilterInv" + std::to_string(plane)).c_str(),
-                        &invtransform->dstvi,
+                        invtransform->GetOutputVI(),
                         1,
                         FFT3DFilterInvTransform::GetFrame,
                         FFT3DFilterInvTransform::Free,
