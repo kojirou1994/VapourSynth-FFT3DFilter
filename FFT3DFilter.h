@@ -148,6 +148,8 @@ private:
 
     std::unique_ptr<float[], decltype(&fftw_free)> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
+
+    VSFrameRef *GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi);
 public:
     const VSVideoInfo *GetOutputVI() const { return &dstvi; };
 

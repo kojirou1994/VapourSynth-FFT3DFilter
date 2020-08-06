@@ -1030,33 +1030,37 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     vsapi->freeFrame(src);
 }
 
+VSFrameRef *FFT3DFilterInvTransform::GetFrame(const VSFrameRef *src, VSCore *core, const VSAPI *vsapi) {
+    VSFrameRef *modifiableSrc = vsapi->copyFrame(src, core);
+
+    fftwf_execute_dft_c2r(planinv.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(modifiableSrc, 0)), in.get());
+
+    vsapi->freeFrame(modifiableSrc);
+
+    VSFrameRef *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, src, core);
+
+    if (dstvi.format.bytesPerSample == 1) {
+        DecodeOverlapPlane(in.get(), norm, reinterpret_cast<uint8_t *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, 255);
+        CoverbufToFramePlane(reinterpret_cast<uint8_t *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi);
+    } else if (dstvi.format.bytesPerSample == 2) {
+        DecodeOverlapPlane(in.get(), norm, reinterpret_cast<uint16_t *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, (1 << dstvi.format.bitsPerSample) - 1);
+        CoverbufToFramePlane(reinterpret_cast<uint16_t *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi);
+    } else if (dstvi.format.bytesPerSample == 4) {
+        DecodeOverlapPlane(in.get(), norm, reinterpret_cast<float *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, 1);
+        CoverbufToFramePlane(reinterpret_cast<float *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi);
+    }
+
+    return dst;
+}
+
 const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_reason, void *instance_data, void **frame_data, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi) {
     FFT3DFilterInvTransform *data = reinterpret_cast<FFT3DFilterInvTransform *>(instance_data);
     if (activation_reason == arInitial) {
         vsapi->requestFrameFilter(n, data->node, frame_ctx);
     } else if (activation_reason == arAllFramesReady) {
         const VSFrameRef *src = vsapi->getFrameFilter(n, data->node, frame_ctx);
-        VSFrameRef *modifiableSrc = vsapi->copyFrame(src, core);
-
-        fftwf_execute_dft_c2r(data->planinv.get(), reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(modifiableSrc, 0)), data->in.get());
-
-        vsapi->freeFrame(modifiableSrc);
-
-        VSFrameRef *dst = vsapi->newVideoFrame(&data->dstvi.format, data->dstvi.width, data->dstvi.height, src, core);
-
-        if (data->dstvi.format.bytesPerSample == 1) {
-            DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->wsynxl.get(), data->wsynxr.get(), data->wsynyr.get(), data->wsynyl.get(), data->bw, data->bh, data->ow, data->oh, data->nox, data->noy, data->coverwidth, data->planeBase, 255);
-            CoverbufToFramePlane(reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
-        } else if (data->dstvi.format.bytesPerSample == 2) {
-            DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->wsynxl.get(), data->wsynxr.get(), data->wsynyr.get(), data->wsynyl.get(), data->bw, data->bh, data->ow, data->oh, data->nox, data->noy, data->coverwidth, data->planeBase, (1 << data->dstvi.format.bitsPerSample) - 1);
-            CoverbufToFramePlane(reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
-        } else if (data->dstvi.format.bytesPerSample == 4) {
-            DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->wsynxl.get(), data->wsynxr.get(), data->wsynyr.get(), data->wsynyl.get(), data->bw, data->bh, data->ow, data->oh, data->nox, data->noy, data->coverwidth, data->planeBase, 1);
-            CoverbufToFramePlane(reinterpret_cast<float *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
-        }
-
+        VSFrameRef *dst = data->GetFrame(src, core, vsapi);
         vsapi->freeFrame(src);
-
         return dst;
     }
 
