@@ -1106,7 +1106,6 @@ VSFrameRef *FFT3DFilterPShow::GetFrame(const VSFrameRef *src, VSCore *core, cons
 
     VSFrameRef *dst = vsapi->newVideoFrame2(&vi->format, vi->width, vi->height, srcs, planesrc, src, core);
 
-   
     int planeBase = (plane > 0 && vi->format.sampleType == stInteger && vi->format.colorFamily == cfYUV) ? (1 << (vi->format.bitsPerSample - 1)) : 0;
 
     if (vi->format.bytesPerSample == 1)
