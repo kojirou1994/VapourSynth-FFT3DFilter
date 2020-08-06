@@ -261,7 +261,7 @@ static void CoverbufToFramePlane(const T * __restrict coverbuf, int coverwidth, 
 /* put source bytes to float array of overlapped blocks
  * use analysis windows */
 template<typename T>
-void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, ptrdiff_t src_pitch, float *__restrict wanxl, float *__restrict wanxr, float *__restrict wanyl, float *__restrict wanyr, int bw, int bh, int ow, int oh, int nox, int noy, int coverwidth, int planeBase) {
+static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, ptrdiff_t src_pitch, float *__restrict wanxl, float *__restrict wanxr, float *__restrict wanyl, float *__restrict wanyr, int bw, int bh, int ow, int oh, int nox, int noy, int coverwidth, int planeBase) {
     int ihx, ihy;
     const T *__restrict srcp = srcp0;
     float ftmp;
@@ -498,7 +498,214 @@ void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, ptrdiff
 
     }
 }
-//
+
+
+template<typename T>
+static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__restrict dstp0, ptrdiff_t dst_pitch, float *__restrict wsynxl, float *__restrict wsynxr, float *__restrict wsynyr, float *__restrict wsynyl, int bw, int bh, int ow, int oh, int nox, int noy, int coverwidth, int planeBase, int maxval) {
+    int w, h;
+    int ihx, ihy;
+    T *__restrict dstp = dstp0;
+    const float *__restrict inp = inp0;
+    int xoffset = bh * bw - (bw - ow);
+    int yoffset = bw * nox * bh - bw * (bh - oh); /* vertical offset of same block (overlap) */
+    dst_pitch /= sizeof(T);
+
+    ihy = 0; /* first top big non-overlapped) part */
+    {
+        for (h = 0; h < bh - oh; h++) {
+            inp = inp0 + h * bw;
+            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase)); /* Copy each byte from float array to dest with windows */
+                else
+                    dstp[w] = inp[w] * norm;
+            }
+            inp += bw - ow;
+            dstp += bw - ow;
+            for (ihx = 1; ihx < nox; ihx++) /* middle horizontal half-blocks */
+            {
+                for (w = 0; w < ow; w++)   /* half line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));  /* overlapped Copy */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
+                }
+                inp += xoffset + ow;
+                dstp += ow;
+                for (w = 0; w < bw - ow - ow; w++)   /* first half line of first block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));   /* Copy each byte from float array to dest with windows */
+                    else
+                        dstp[w] = inp[w] * norm;
+                }
+                inp += bw - ow - ow;
+                dstp += bw - ow - ow;
+            }
+            for (w = 0; w < ow; w++)   /* last half line of last block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                else
+                    dstp[w] = inp[w] * norm;
+            }
+            inp += ow;
+            dstp += ow;
+
+            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the dest image. */
+        }
+    }
+
+    for (ihy = 1; ihy < noy; ihy += 1) /* middle vertical */
+    {
+        for (h = 0; h < oh; h++) /* top overlapped part */
+        {
+            inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
+
+            float wsynyrh = wsynyr[h] * norm; /* remove from cycle for speed */
+            float wsynylh = wsynyl[h] * norm;
+
+            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));   /* y overlapped */
+                else
+                    dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
+            }
+            inp += bw - ow;
+            dstp += bw - ow;
+            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            {
+                for (w = 0; w < ow; w++)   /* half overlapped line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
+                            + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh)) + planeBase));   /* x overlapped */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
+                        + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh;
+                }
+                inp += xoffset + ow;
+                dstp += ow;
+                for (w = 0; w < bw - ow - ow; w++)   /* double minus - half non-overlapped line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));
+                    else
+                        dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
+                }
+                inp += bw - ow - ow;
+                dstp += bw - ow - ow;
+            }
+            for (w = 0; w < ow; w++)   /* last half line of last block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));
+                else
+                    dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
+            }
+            inp += ow;
+            dstp += ow;
+
+            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+        }
+        /* middle  vertical non-ovelapped part */
+        for (h = 0; h < (bh - oh - oh); h++) {
+            inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh)*bw + h * bw + yoffset;
+            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                else
+                    dstp[w] = inp[w] * norm;
+            }
+            inp += bw - ow;
+            dstp += bw - ow;
+            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            {
+                for (w = 0; w < ow; w++)   /* half overlapped line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));   /* x overlapped */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
+                }
+                inp += xoffset + ow;
+                dstp += ow;
+                for (w = 0; w < bw - ow - ow; w++)   /* half non-overlapped line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                    else
+                        dstp[w] = inp[w] * norm;
+                }
+                inp += bw - ow - ow;
+                dstp += bw - ow - ow;
+            }
+            for (w = 0; w < ow; w++)   /* last half line of last block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                else
+                    dstp[w] = inp[w] * norm;
+            }
+            inp += ow;
+            dstp += ow;
+
+            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+        }
+    }
+
+    ihy = noy; /* last bottom part */
+    {
+        for (h = 0; h < oh; h++) {
+            inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
+            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                else
+                    dstp[w] = inp[w] * norm;
+            }
+            inp += bw - ow;
+            dstp += bw - ow;
+            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            {
+                for (w = 0; w < ow; w++)   /* half line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));  /* overlapped Copy */
+                    else
+                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
+                }
+                inp += xoffset + ow;
+                dstp += ow;
+                for (w = 0; w < bw - ow - ow; w++)   /* half line of block */
+                {
+                    if constexpr (std::is_integral<T>::value)
+                        dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                    else
+                        dstp[w] = inp[w] * norm;
+                }
+                inp += bw - ow - ow;
+                dstp += bw - ow - ow;
+            }
+            for (w = 0; w < ow; w++)   /* last half line of last block */
+            {
+                if constexpr (std::is_integral<T>::value)
+                    dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
+                else
+                    dstp[w] = inp[w] * norm;
+            }
+            inp += ow;
+            dstp += ow;
+
+            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
+        }
+    }
+}
 
 FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int plane_, int wintype, int bw_, int bh_, int ow_, int oh_, int px_, int py_, float pcutoff_, float degrid_, bool interlaced_, bool measure, int ncpu, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_), px(px_), py(py_), pcutoff(pcutoff_), degrid(degrid_), interlaced(interlaced_), in(nullptr, nullptr), plan(nullptr, nullptr) {
     if (ow < 0)
@@ -838,13 +1045,13 @@ const VSFrameRef *VS_CC FFT3DFilterInvTransform::GetFrame(int n, int activation_
         VSFrameRef *dst = vsapi->newVideoFrame(&data->dstvi.format, data->dstvi.width, data->dstvi.height, src, core);
 
         if (data->dstvi.format.bytesPerSample == 1) {
-            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, 255);
+            DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverpitch, data->wsynxl.get(), data->wsynxr.get(), data->wsynyr.get(), data->wsynyl.get(), data->bw, data->bh, data->ow, data->oh, data->nox, data->noy, data->coverwidth, data->planeBase, 255);
             CoverbufToFramePlane(reinterpret_cast<uint8_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         } else if (data->dstvi.format.bytesPerSample == 2) {
-            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->planeBase, (1 << data->dstvi.format.bitsPerSample) - 1);
+            DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverpitch, data->wsynxl.get(), data->wsynxr.get(), data->wsynyr.get(), data->wsynyl.get(), data->bw, data->bh, data->ow, data->oh, data->nox, data->noy, data->coverwidth, data->planeBase, (1 << data->dstvi.format.bitsPerSample) - 1);
             CoverbufToFramePlane(reinterpret_cast<uint16_t *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         } else if (data->dstvi.format.bytesPerSample == 4) {
-            data->DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->planeBase, 1);
+            DecodeOverlapPlane(data->in.get(), data->norm, reinterpret_cast<float *>(data->coverbuf.get()), data->coverpitch, data->wsynxl.get(), data->wsynxr.get(), data->wsynyr.get(), data->wsynyl.get(), data->bw, data->bh, data->ow, data->oh, data->nox, data->noy, data->coverwidth, data->planeBase, 1);
             CoverbufToFramePlane(reinterpret_cast<float *>(data->coverbuf.get()), data->coverwidth, data->coverheight, data->coverpitch, dst, data->mirw, data->mirh, data->interlaced, vsapi);
         }
 
@@ -860,219 +1067,6 @@ void VS_CC FFT3DFilterInvTransform::Free(void *instance_data, VSCore *core, cons
     FFT3DFilterInvTransform *data = reinterpret_cast<FFT3DFilterInvTransform *>(instance_data);
     vsapi->freeNode(data->node);
     delete data;
-}
-
-/* make destination frame plane from overlaped blocks
- * use synthesis windows wsynxl, wsynxr, wsynyl, wsynyr */
-template<typename T>
-void FFT3DFilterInvTransform::DecodeOverlapPlane( const float * __restrict inp0, float norm, T * __restrict dstp0, int dst_pitch, int planeBase, int maxval )
-{
-    int w, h;
-    int ihx, ihy;
-    T * __restrict dstp = dstp0;
-    const float * __restrict inp = inp0;
-    int xoffset = bh * bw - (bw - ow);
-    int yoffset = bw * nox * bh - bw * (bh - oh); /* vertical offset of same block (overlap) */
-    dst_pitch /= sizeof(T);
-
-    ihy = 0; /* first top big non-overlapped) part */
-    {
-        for( h = 0; h < bh - oh; h++ )
-        {
-            inp = inp0 + h * bw;
-            for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
-            {   
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) ); /* Copy each byte from float array to dest with windows */
-                else 
-                    dstp[w] = inp[w] * norm;
-            }
-            inp  += bw - ow;
-            dstp += bw - ow;
-            for( ihx = 1; ihx < nox; ihx++ ) /* middle horizontal half-blocks */
-            {
-                for( w = 0; w < ow; w++ )   /* half line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
-                    else
-                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
-                }
-                inp  += xoffset + ow;
-                dstp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* first half line of first block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );   /* Copy each byte from float array to dest with windows */
-                    else
-                        dstp[w] = inp[w] * norm;
-                }
-                inp  += bw - ow - ow;
-                dstp += bw - ow - ow;
-            }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0,(int)(inp[w] * norm) + planeBase ) );
-                else
-                    dstp[w] = inp[w] * norm;
-            }
-            inp  += ow;
-            dstp += ow;
-
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the dest image. */
-        }
-    }
-
-    for( ihy = 1; ihy < noy; ihy += 1 ) /* middle vertical */
-    {
-        for( h = 0; h < oh; h++ ) /* top overlapped part */
-        {
-            inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
-
-            float wsynyrh = wsynyr[h] * norm; /* remove from cycle for speed */
-            float wsynylh = wsynyl[h] * norm;
-
-            for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );   /* y overlapped */
-                else
-                    dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
-            }
-            inp  += bw - ow;
-            dstp += bw - ow;
-            for( ihx = 1; ihx < nox; ihx++ ) /* middle blocks */
-            {
-                for( w = 0; w < ow; w++ )   /* half overlapped line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
-                            + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh)) + planeBase ) );   /* x overlapped */
-                    else
-                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
-                            + (inp[w + yoffset] * wsynxr[w] + inp[w + xoffset + yoffset] * wsynxl[w]) * wsynylh;
-                }
-                inp  += xoffset + ow;
-                dstp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* double minus - half non-overlapped line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh )) + planeBase ) );
-                    else
-                        dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
-                }
-                inp  += bw - ow - ow;
-                dstp += bw - ow - ow;
-            }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase ) );
-                else
-                    dstp[w] = inp[w] * wsynyrh + inp[w + yoffset] * wsynylh;
-            }
-            inp  += ow;
-            dstp += ow;
-
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
-        }
-        /* middle  vertical non-ovelapped part */
-        for( h = 0; h < (bh - oh - oh); h++ )
-        {
-            inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh) * bw + h * bw + yoffset;
-            for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
-                else
-                    dstp[w] = inp[w] * norm;
-            }
-            inp  += bw - ow;
-            dstp += bw - ow;
-            for( ihx = 1; ihx < nox; ihx++ ) /* middle blocks */
-            {
-                for( w = 0; w < ow; w++ )   /* half overlapped line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w] ) * norm) + planeBase ) );   /* x overlapped */
-                    else
-                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
-                }
-                inp  += xoffset + ow;
-                dstp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* half non-overlapped line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
-                    else
-                        dstp[w] = inp[w] * norm;
-                }
-                inp  += bw - ow - ow;
-                dstp += bw - ow - ow;
-            }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
-                else
-                    dstp[w] = inp[w] * norm;
-            }
-            inp  += ow;
-            dstp += ow;
-
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
-        }
-    }
-
-    ihy = noy ; /* last bottom part */
-    {
-        for( h = 0; h < oh; h++ )
-        {
-            inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
-            for( w = 0; w < bw - ow; w++ )   /* first half line of first block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
-                else
-                    dstp[w] = inp[w] * norm;
-            }
-            inp  += bw - ow;
-            dstp += bw - ow;
-            for( ihx = 1; ihx < nox; ihx++ ) /* middle blocks */
-            {
-                for( w = 0; w < ow; w++ )   /* half line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase ) );  /* overlapped Copy */
-                    else
-                        dstp[w] = (inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm;
-                }
-                inp  += xoffset + ow;
-                dstp += ow;
-                for( w = 0; w < bw - ow - ow; w++ )   /* half line of block */
-                {
-                    if constexpr (std::is_integral<T>::value)
-                        dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
-                    else
-                        dstp[w] = inp[w] * norm;
-                }
-                inp  += bw - ow - ow;
-                dstp += bw - ow - ow;
-            }
-            for( w = 0; w < ow; w++ )   /* last half line of last block */
-            {
-                if constexpr (std::is_integral<T>::value)
-                    dstp[w] = std::min(maxval, std::max( 0, (int)(inp[w] * norm) + planeBase ) );
-                else
-                    dstp[w] = inp[w] * norm;
-            }
-            inp  += ow;
-            dstp += ow;
-
-            dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
-        }
-    }
 }
 
 FFT3DFilterPShow::FFT3DFilterPShow(VSNodeRef *node_, int plane_, int bw_, int bh_, int ow_, int oh_, bool interlaced_, VSCore *core, const VSAPI *vsapi) : node(node_), plane(plane_), bw(bw_), bh(bh_), ow(ow_), oh(oh_) {

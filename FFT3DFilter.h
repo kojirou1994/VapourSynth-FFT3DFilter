@@ -148,10 +148,6 @@ private:
 
     std::unique_ptr<float[], decltype(&fftw_free)> in;
     std::unique_ptr<fftwf_plan_s, decltype(&fftwf_destroy_plan)> planinv;
-
-    template<typename T>
-    void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__restrict dstp0, int dst_pitch, int planeBase, int maxval);
-
 public:
     const VSVideoInfo *GetOutputVI() const { return &dstvi; };
 
