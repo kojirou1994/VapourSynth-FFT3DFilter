@@ -45,43 +45,40 @@ static inline void getPlanesArg(const VSMap *in, bool *process, const VSAPI *vsa
 
 static inline void set_option_int
 (
-    int     *opt,
+    int *opt,
     int      default_value,
-    const char  *arg,
+    const char *arg,
     const VSMap *in,
     const VSAPI *vsapi
-)
-{
+) {
     int e;
-    *opt = vsapi->mapGetIntSaturated( in, arg, 0, &e );
-    if( e )
+    *opt = vsapi->mapGetIntSaturated(in, arg, 0, &e);
+    if (e)
         *opt = default_value;
 }
 
 static inline void set_option_float
 (
-    float       *opt,
+    float *opt,
     float        default_value,
-    const char  *arg,
+    const char *arg,
     const VSMap *in,
     const VSAPI *vsapi
-)
-{
+) {
     int e;
-    *opt = vsapi->mapGetFloatSaturated( in, arg, 0, &e );
-    if( e )
+    *opt = vsapi->mapGetFloatSaturated(in, arg, 0, &e);
+    if (e)
         *opt = static_cast<float>(default_value);
 }
 
 static void VS_CC createFFT3DFilter
 (
     const VSMap *in,
-    VSMap       *out,
-    void        *user_data,
-    VSCore      *core,
+    VSMap *out,
+    void *user_data,
+    VSCore *core,
     const VSAPI *vsapi
-)
-{
+) {
     float sigma1;
     float beta;
     bool process[3];
@@ -123,36 +120,36 @@ static void VS_CC createFFT3DFilter
 
         getPlanesArg(in, process, vsapi);
 
-        set_option_float( &sigma1,    2.0, "sigma",      in, vsapi );
-        set_option_float( &beta,      1.0, "beta",       in, vsapi );
-        set_option_int( &bw,          32, "bw",         in, vsapi );
-        set_option_int( &bh,          32, "bh",         in, vsapi );
-        set_option_int( &bt,          3, "bt",         in, vsapi );
-        set_option_int( &ow,       bw/3, "ow",         in, vsapi );
-        set_option_int( &oh,       bh/3, "oh",         in, vsapi );
-        set_option_float( &kratio,    2.0, "kratio",     in, vsapi );
-        set_option_float( &sharpen,     0, "sharpen",    in, vsapi );
-        set_option_float( &scutoff,  0.3f, "scutoff",    in, vsapi );
-        set_option_float( &svr,       1.0, "svr",        in, vsapi );
-        set_option_float( &smin,      4.0, "smin",       in, vsapi );
-        set_option_float( &smax,     20.0, "smax",       in, vsapi );
-        set_option_int( &measure,     1, "measure",    in, vsapi );
-        set_option_int( &interlaced,  0, "interlaced", in, vsapi );
-        set_option_int( &wintype,     0, "wintype",    in, vsapi );
-        set_option_int( &pframe,      0, "pframe",     in, vsapi );
-        set_option_int( &px,          0, "px",         in, vsapi );
-        set_option_int( &py,          0, "py",         in, vsapi );
-        set_option_int( &pshow,       0, "pshow",      in, vsapi );
-        set_option_float( &pcutoff,  0.1f, "pcutoff",    in, vsapi );
-        set_option_float( &pfactor,     0, "pfactor",    in, vsapi );
-        set_option_float( &sigma2, sigma1, "sigma2",     in, vsapi );
-        set_option_float( &sigma3, sigma1, "sigma3",     in, vsapi );
-        set_option_float( &sigma4, sigma1, "sigma4",     in, vsapi );
-        set_option_float( &degrid,    1.0, "degrid",     in, vsapi );
-        set_option_float( &dehalo,      0, "dehalo",     in, vsapi );
-        set_option_float( &hr,        2.0, "hr",         in, vsapi );
-        set_option_float( &ht,       50.0, "ht",         in, vsapi );
-        set_option_int( &ncpu,        1, "ncpu",       in, vsapi );    
+        set_option_float(&sigma1, 2.0, "sigma", in, vsapi);
+        set_option_float(&beta, 1.0, "beta", in, vsapi);
+        set_option_int(&bw, 32, "bw", in, vsapi);
+        set_option_int(&bh, 32, "bh", in, vsapi);
+        set_option_int(&bt, 3, "bt", in, vsapi);
+        set_option_int(&ow, bw / 3, "ow", in, vsapi);
+        set_option_int(&oh, bh / 3, "oh", in, vsapi);
+        set_option_float(&kratio, 2.0, "kratio", in, vsapi);
+        set_option_float(&sharpen, 0, "sharpen", in, vsapi);
+        set_option_float(&scutoff, 0.3f, "scutoff", in, vsapi);
+        set_option_float(&svr, 1.0, "svr", in, vsapi);
+        set_option_float(&smin, 4.0, "smin", in, vsapi);
+        set_option_float(&smax, 20.0, "smax", in, vsapi);
+        set_option_int(&measure, 1, "measure", in, vsapi);
+        set_option_int(&interlaced, 0, "interlaced", in, vsapi);
+        set_option_int(&wintype, 0, "wintype", in, vsapi);
+        set_option_int(&pframe, 0, "pframe", in, vsapi);
+        set_option_int(&px, 0, "px", in, vsapi);
+        set_option_int(&py, 0, "py", in, vsapi);
+        set_option_int(&pshow, 0, "pshow", in, vsapi);
+        set_option_float(&pcutoff, 0.1f, "pcutoff", in, vsapi);
+        set_option_float(&pfactor, 0, "pfactor", in, vsapi);
+        set_option_float(&sigma2, sigma1, "sigma2", in, vsapi);
+        set_option_float(&sigma3, sigma1, "sigma3", in, vsapi);
+        set_option_float(&sigma4, sigma1, "sigma4", in, vsapi);
+        set_option_float(&degrid, 1.0, "degrid", in, vsapi);
+        set_option_float(&dehalo, 0, "dehalo", in, vsapi);
+        set_option_float(&hr, 2.0, "hr", in, vsapi);
+        set_option_float(&ht, 50.0, "ht", in, vsapi);
+        set_option_int(&ncpu, 1, "ncpu", in, vsapi);
 
         if (bt < -1 || bt > 5)
             throw std::runtime_error{ "bt must be -1(Sharpen), 0(Kalman) or 1,2,3,4,5(Wiener)" };
@@ -306,7 +303,7 @@ static void VS_CC createFFT3DFilter
             }
 
             vsapi->freeNode(node);
-            
+
             if (vi->format.numPlanes > 1) {
                 for (int plane = 0; plane < vi->format.numPlanes; plane++) {
                     vsapi->mapSetNode(tmp, "clips", outnodes[plane], paAppend);
@@ -324,10 +321,7 @@ static void VS_CC createFFT3DFilter
 
             vsapi->freeMap(tmp);
         }
-
-
-    }
-    catch (std::runtime_error &e) {
+    } catch (std::runtime_error &e) {
         vsapi->mapSetError(out, (std::string("FFT3DFilter: ") + e.what()).c_str());
     }
 }
@@ -336,7 +330,7 @@ static void VS_CC createFFT3DFilter
 
 VS_EXTERNAL_API(void) VapourSynthPluginInit2(VSPlugin *plugin, const VSPLUGINAPI *vspapi) {
     vspapi->configPlugin("systems.innocent.fft3dfilter", "fft3dfilter", "systems", VS_MAKE_VERSION(2, 0), VAPOURSYNTH_API_VERSION, 0, plugin);
-    vspapi->registerFunction("FFT3DFilter", 
+    vspapi->registerFunction("FFT3DFilter",
         "clip:vnode;sigma:float:opt;beta:float:opt;planes:int[]:opt;bw:int:opt;bh:int:opt;bt:int:opt;ow:int:opt;oh:int:opt;"
         "kratio:float:opt;sharpen:float:opt;scutoff:float:opt;svr:float:opt;smin:float:opt;smax:float:opt;"
         "measure:int:opt;interlaced:int:opt;wintype:int:opt;"

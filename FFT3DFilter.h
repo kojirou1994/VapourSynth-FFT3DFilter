@@ -24,8 +24,8 @@
 #include <fftw3.h>
 #include <VapourSynth4.h>
 
-/** declarations of filtering functions: **/
-/* C */
+ /** declarations of filtering functions: **/
+ /* C */
 void ApplyWiener2D_C(fftwf_complex *out, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n);
 void ApplyPattern2D_C(fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float pfactor, const float *pattern2d0, float beta);
 void ApplyWiener3D2_C(fftwf_complex *outcur, const fftwf_complex *outprev, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta);

@@ -43,8 +43,8 @@ static void fft3d_memset(T *dst, T val, size_t count) {
 
 static void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *wanxr, float *wanyl, float *wanyr) {
     constexpr float pi = 3.1415926535897932384626433832795f;
-    if (wintype == 0) {  
-        /* 
+    if (wintype == 0) {
+        /*
          * half-cosine, the same for analysis and synthesis
          * define analysis windows */
         for (int i = 0; i < ow; i++) {
@@ -65,7 +65,7 @@ static void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *
             wanyl[i] = sqrt(cosf(pi * (i - oh + 0.5f) / (oh * 2)));
             wanyr[i] = sqrt(cosf(pi * (i + 0.5f) / (oh * 2)));
         }
-    } else /* (wintype==2) */  {
+    } else /* (wintype==2) */ {
         /* define analysis windows as flat (to prevent grid) */
         for (int i = 0; i < ow; i++) {
             wanxl[i] = 1;
@@ -80,7 +80,7 @@ static void GetAnalysisWindow(int wintype, int ow, int oh, float *wanxl, float *
 
 static void GetSynthesisWindow(int wintype, int ow, int oh, float *wsynxl, float *wsynxr, float *wsynyl, float *wsynyr) {
     constexpr float pi = 3.1415926535897932384626433832795f;
-    if (wintype == 0) { 
+    if (wintype == 0) {
         for (int i = 0; i < ow; i++) {
             wsynxl[i] = cosf(pi * (i - ow + 0.5f) / (ow * 2)); /* left analize window (half-cosine) */
             wsynxr[i] = cosf(pi * (i + 0.5f) / (ow * 2)); /* right analize window (half-cosine) */
@@ -137,119 +137,103 @@ static void GetPatternWindow(int bw, int bh, int outwidth, int outpitchelems, fl
 
 //
 template<typename T>
-static void FramePlaneToCoverbuf( int plane, const VSFrameRef *src, T * __restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, int mirw, int mirh, bool interlaced, const VSAPI *vsapi )
-{
-    const T * __restrict srcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, plane));
+static void FramePlaneToCoverbuf(int plane, const VSFrameRef *src, T *__restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, int mirw, int mirh, bool interlaced, const VSAPI *vsapi) {
+    const T *__restrict srcp = reinterpret_cast<const T *>(vsapi->getReadPtr(src, plane));
     int            src_height = vsapi->getFrameHeight(src, plane);
     int            src_width = vsapi->getFrameWidth(src, plane);
     ptrdiff_t      src_pitch = vsapi->getStride(src, plane) / sizeof(T);
     coverpitch /= sizeof(T);
 
     int width2 = src_width + src_width + mirw + mirw - 2;
-    T * __restrict coverbuf1 = coverbuf + coverpitch * mirh;
+    T *__restrict coverbuf1 = coverbuf + coverpitch * mirh;
 
-    if( !interlaced ) /* progressive */
+    if (!interlaced) /* progressive */
     {
-        for(int h = mirh; h < src_height + mirh; h++ )
-        {
-            for(int w = 0; w < mirw; w++ )
-            {
+        for (int h = mirh; h < src_height + mirh; h++) {
+            for (int w = 0; w < mirw; w++) {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
             memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
-            for(int w = src_width + mirw; w < coverwidth; w++ )
-            {
+            for (int w = src_width + mirw; w < coverwidth; w++) {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
             }
             coverbuf1 += coverpitch;
-            srcp      += src_pitch;
+            srcp += src_pitch;
         }
-    }
-    else /* interlaced */
+    } else /* interlaced */
     {
-        for(int h = mirh; h < src_height / 2 + mirh; h++ ) /* first field */
+        for (int h = mirh; h < src_height / 2 + mirh; h++) /* first field */
         {
-            for(int w = 0; w < mirw; w++ )
-            {
+            for (int w = 0; w < mirw; w++) {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
             memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
-            for(int w = src_width + mirw; w < coverwidth; w++ )
-            {
+            for (int w = src_width + mirw; w < coverwidth; w++) {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
             }
             coverbuf1 += coverpitch;
-            srcp      += src_pitch * 2;
+            srcp += src_pitch * 2;
         }
 
         srcp -= src_pitch;
-        for(int h = src_height / 2 + mirh; h < src_height + mirh; h++ ) /* flip second field */
+        for (int h = src_height / 2 + mirh; h < src_height + mirh; h++) /* flip second field */
         {
-            for(int w = 0; w < mirw; w++ )
-            {
+            for (int w = 0; w < mirw; w++) {
                 coverbuf1[w] = coverbuf1[mirw + mirw - w]; /* mirror left border */
             }
             memcpy(coverbuf1 + mirw, srcp, src_width * sizeof(T)); /* copy line */
-            for(int w = src_width + mirw; w < coverwidth; w++ )
-            {
+            for (int w = src_width + mirw; w < coverwidth; w++) {
                 coverbuf1[w] = coverbuf1[width2 - w]; /* mirror right border */
             }
             coverbuf1 += coverpitch;
-            srcp      -= src_pitch * 2;
+            srcp -= src_pitch * 2;
         }
     }
 
     T *pmirror = coverbuf1 - coverpitch * 2; /* pointer to vertical mirror */
-    for(int h = src_height + mirh; h < coverheight; h++ )
-    {
-        memcpy( coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
+    for (int h = src_height + mirh; h < coverheight; h++) {
+        memcpy(coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
-        pmirror   -= coverpitch;
+        pmirror -= coverpitch;
     }
     coverbuf1 = coverbuf;
-    pmirror   = coverbuf1 + coverpitch * mirh * 2; /* pointer to vertical mirror */
-    for(int h = 0; h < mirh; h++ )
-    {
-        memcpy( coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
+    pmirror = coverbuf1 + coverpitch * mirh * 2; /* pointer to vertical mirror */
+    for (int h = 0; h < mirh; h++) {
+        memcpy(coverbuf1, pmirror, coverwidth * sizeof(T)); /* mirror bottom line by line */
         coverbuf1 += coverpitch;
-        pmirror   -= coverpitch;
+        pmirror -= coverpitch;
     }
 }
 //-----------------------------------------------------------------------
 //
 template<typename T>
-static void CoverbufToFramePlane(const T * __restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, VSFrameRef *dst, int mirw, int mirh, bool interlaced, const VSAPI *vsapi )
-{
+static void CoverbufToFramePlane(const T *__restrict coverbuf, int coverwidth, int coverheight, ptrdiff_t coverpitch, VSFrameRef *dst, int mirw, int mirh, bool interlaced, const VSAPI *vsapi) {
     T *__restrict dstp = reinterpret_cast<T *>(vsapi->getWritePtr(dst, 0));
     int      dst_height = vsapi->getFrameHeight(dst, 0);
     int      dst_width = vsapi->getFrameWidth(dst, 0);
     ptrdiff_t   dst_pitch = vsapi->getStride(dst, 0) / sizeof(T);
     coverpitch /= sizeof(T);
 
-    const T * __restrict coverbuf1 = coverbuf + coverpitch * mirh + mirw;
-    if( !interlaced ) /* progressive */
+    const T *__restrict coverbuf1 = coverbuf + coverpitch * mirh + mirw;
+    if (!interlaced) /* progressive */
     {
-        for( int h = 0; h < dst_height; h++ )
-        {
-            memcpy( dstp, coverbuf1, dst_width * sizeof(T) ); /* copy pure frame size only */
-            dstp      += dst_pitch;
+        for (int h = 0; h < dst_height; h++) {
+            memcpy(dstp, coverbuf1, dst_width * sizeof(T)); /* copy pure frame size only */
+            dstp += dst_pitch;
             coverbuf1 += coverpitch;
         }
-    }
-    else /* interlaced */
+    } else /* interlaced */
     {
-        for( int h = 0; h < dst_height; h += 2 )
-        {
-            memcpy( dstp, coverbuf1, dst_width * sizeof(T)); /* copy pure frame size only */
-            dstp      += dst_pitch * 2;
+        for (int h = 0; h < dst_height; h += 2) {
+            memcpy(dstp, coverbuf1, dst_width * sizeof(T)); /* copy pure frame size only */
+            dstp += dst_pitch * 2;
             coverbuf1 += coverpitch;
         }
         /* second field is flipped */
         dstp -= dst_pitch;
-        for( int h = 0; h < dst_height; h += 2 )
-        {
-            memcpy( dstp, coverbuf1, dst_width * sizeof(T)); /* copy pure frame size only */
-            dstp      -= dst_pitch * 2;
+        for (int h = 0; h < dst_height; h += 2) {
+            memcpy(dstp, coverbuf1, dst_width * sizeof(T)); /* copy pure frame size only */
+            dstp -= dst_pitch * 2;
             coverbuf1 += coverpitch;
         }
     }
@@ -747,7 +731,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
     int outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 
     int planFlags = (measure ? FFTW_MEASURE : FFTW_ESTIMATE) | FFTW_DESTROY_INPUT;
-    int ndim[2] = { bh, bw }; 
+    int ndim[2] = { bh, bw };
     int idist = bw * bh;
     int odist = outpitchelems * bh;
     int inembed[2] = { bh, bw };

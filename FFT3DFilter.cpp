@@ -36,81 +36,69 @@
 #include <cmath>
 #include <cstdlib>
 
-//-------------------------------------------------------------------------------------------
-static void ApplyWiener2D( fftwf_complex *out, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed,
-                           float beta, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n )
-{
-    ApplyWiener2D_C( out, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, dehalo, wdehalo, ht2n );
+ //-------------------------------------------------------------------------------------------
+static void ApplyWiener2D(fftwf_complex *out, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed,
+    float beta, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n) {
+    ApplyWiener2D_C(out, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, dehalo, wdehalo, ht2n);
 }
 //-------------------------------------------------------------------------------------------
-static void ApplyPattern2D( fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float pfactor, const float *pattern2d0, float beta )
-{
-    ApplyPattern2D_C( outcur, outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d0, beta );
-}
-//-------------------------------------------------------------------------------------------
-template < int btcur >
-static void ApplyWiener3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta, float degrid, const fftwf_complex *gridsample )
-{
-    if( btcur == 5 ) ApplyWiener3D5_degrid_C( out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
-    if( btcur == 4 ) ApplyWiener3D4_degrid_C( out, outprev2, outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
-    if( btcur == 3 ) ApplyWiener3D3_degrid_C( out,           outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
-    if( btcur == 2 ) ApplyWiener3D2_degrid_C( out,           outprev,                    outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample );
+static void ApplyPattern2D(fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float pfactor, const float *pattern2d0, float beta) {
+    ApplyPattern2D_C(outcur, outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d0, beta);
 }
 //-------------------------------------------------------------------------------------------
 template < int btcur >
-static void ApplyPattern3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample )
-{
-    if( btcur == 5 ) ApplyPattern3D5_degrid_C( out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample );
-    if( btcur == 4 ) ApplyPattern3D4_degrid_C( out, outprev2, outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample );
-    if( btcur == 3 ) ApplyPattern3D3_degrid_C( out,           outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample );
-    if( btcur == 2 ) ApplyPattern3D2_degrid_C( out,           outprev,                    outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample );
+static void ApplyWiener3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta, float degrid, const fftwf_complex *gridsample) {
+    if (btcur == 5) ApplyWiener3D5_degrid_C(out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample);
+    if (btcur == 4) ApplyWiener3D4_degrid_C(out, outprev2, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample);
+    if (btcur == 3) ApplyWiener3D3_degrid_C(out, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample);
+    if (btcur == 2) ApplyWiener3D2_degrid_C(out, outprev, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, gridsample);
 }
 //-------------------------------------------------------------------------------------------
 template < int btcur >
-static void ApplyWiener3D(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta )
-{
-    if( btcur == 5 ) ApplyWiener3D5_C( out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta );
-    if( btcur == 4 ) ApplyWiener3D4_C( out, outprev2, outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta );
-    if( btcur == 3 ) ApplyWiener3D3_C( out,           outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta );
-    if( btcur == 2 ) ApplyWiener3D2_C( out,           outprev,                    outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta );
+static void ApplyPattern3D_degrid(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float *pattern3d, float beta, float degrid, const fftwf_complex *gridsample) {
+    if (btcur == 5) ApplyPattern3D5_degrid_C(out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample);
+    if (btcur == 4) ApplyPattern3D4_degrid_C(out, outprev2, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample);
+    if (btcur == 3) ApplyPattern3D3_degrid_C(out, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample);
+    if (btcur == 2) ApplyPattern3D2_degrid_C(out, outprev, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta, degrid, gridsample);
 }
 //-------------------------------------------------------------------------------------------
 template < int btcur >
-static void ApplyPattern3D(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta )
-{
-    if( btcur == 5 ) ApplyPattern3D5_C( out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta );
-    if( btcur == 4 ) ApplyPattern3D4_C( out, outprev2, outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta );
-    if( btcur == 3 ) ApplyPattern3D3_C( out,           outprev, outnext,           outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta );
-    if( btcur == 2 ) ApplyPattern3D2_C( out,           outprev,                    outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta );
+static void ApplyWiener3D(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sigmaSquaredNoiseNormed, float beta) {
+    if (btcur == 5) ApplyWiener3D5_C(out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta);
+    if (btcur == 4) ApplyWiener3D4_C(out, outprev2, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta);
+    if (btcur == 3) ApplyWiener3D3_C(out, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta);
+    if (btcur == 2) ApplyWiener3D2_C(out, outprev, outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta);
 }
 //-------------------------------------------------------------------------------------------
-static void ApplyKalmanPattern( const fftwf_complex *outcur, fftwf_complex *outLast, fftwf_complex *covar, fftwf_complex *covarProcess, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *covarNoiseNormed, float kratio2 )
-{
-    ApplyKalmanPattern_C( outcur, outLast, covar, covarProcess, outwidth, outpitchelems, bh, howmanyblocks,  covarNoiseNormed, kratio2 );
+template < int btcur >
+static void ApplyPattern3D(fftwf_complex *out, const fftwf_complex *outprev2, const fftwf_complex *outprev, const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *pattern3d, float beta) {
+    if (btcur == 5) ApplyPattern3D5_C(out, outprev2, outprev, outnext, outnext2, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta);
+    if (btcur == 4) ApplyPattern3D4_C(out, outprev2, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta);
+    if (btcur == 3) ApplyPattern3D3_C(out, outprev, outnext, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta);
+    if (btcur == 2) ApplyPattern3D2_C(out, outprev, outwidth, outpitchelems, bh, howmanyblocks, pattern3d, beta);
 }
 //-------------------------------------------------------------------------------------------
-static void ApplyKalman( const fftwf_complex *outcur, fftwf_complex *outLast, fftwf_complex *covar, fftwf_complex *covarProcess, int outwidth, int outpitchelems, int bh, int howmanyblocks,  float covarNoiseNormed, float kratio2 )
-{
-    ApplyKalman_C( outcur, outLast, covar, covarProcess, outwidth, outpitchelems, bh, howmanyblocks,  covarNoiseNormed, kratio2 );
+static void ApplyKalmanPattern(const fftwf_complex *outcur, fftwf_complex *outLast, fftwf_complex *covar, fftwf_complex *covarProcess, int outwidth, int outpitchelems, int bh, int howmanyblocks, const float *covarNoiseNormed, float kratio2) {
+    ApplyKalmanPattern_C(outcur, outLast, covar, covarProcess, outwidth, outpitchelems, bh, howmanyblocks, covarNoiseNormed, kratio2);
 }
 //-------------------------------------------------------------------------------------------
-static void Sharpen( fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n )
-{
-    Sharpen_C( outcur, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, dehalo, wdehalo, ht2n );
+static void ApplyKalman(const fftwf_complex *outcur, fftwf_complex *outLast, fftwf_complex *covar, fftwf_complex *covarProcess, int outwidth, int outpitchelems, int bh, int howmanyblocks, float covarNoiseNormed, float kratio2) {
+    ApplyKalman_C(outcur, outLast, covar, covarProcess, outwidth, outpitchelems, bh, howmanyblocks, covarNoiseNormed, kratio2);
 }
 //-------------------------------------------------------------------------------------------
-static void Sharpen_degrid( fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float degrid, const fftwf_complex *gridsample, float dehalo, const float *wdehalo, float ht2n )
-{
-    Sharpen_degrid_C( outcur, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, degrid, gridsample, dehalo, wdehalo, ht2n );
+static void Sharpen(fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo, const float *wdehalo, float ht2n) {
+    Sharpen_C(outcur, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, dehalo, wdehalo, ht2n);
+}
+//-------------------------------------------------------------------------------------------
+static void Sharpen_degrid(fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float sharpen, float sigmaSquaredSharpenMin, float sigmaSquaredSharpenMax, const float *wsharpen, float degrid, const fftwf_complex *gridsample, float dehalo, const float *wdehalo, float ht2n) {
+    Sharpen_degrid_C(outcur, outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMin, sigmaSquaredSharpenMax, wsharpen, degrid, gridsample, dehalo, wdehalo, ht2n);
 }
 //-------------------------------------------------------------------------------------------
 
 //-------------------------------------------------------------------
-static void fill_complex( fftwf_complex *plane, int outsize, float realvalue, float imgvalue)
-{
+static void fill_complex(fftwf_complex *plane, int outsize, float realvalue, float imgvalue) {
     /* it is not fast, but called only in constructor */
-    for( int w = 0; w < outsize; w++ )
-    {
+    for (int w = 0; w < outsize; w++) {
         plane[w][0] = realvalue;
         plane[w][1] = imgvalue;
     }
@@ -158,29 +146,21 @@ static void GetDeHaloWindow(int bw, int bh, int outwidth, int outpitchelems, flo
 }
 
 //-------------------------------------------------------------------
-static void SigmasToPattern( float sigma, float sigma2, float sigma3, float sigma4, int bh, int outwidth, int outpitchelems, float norm, float *pattern2d )
-{
+static void SigmasToPattern(float sigma, float sigma2, float sigma3, float sigma4, int bh, int outwidth, int outpitchelems, float norm, float *pattern2d) {
     /* it is not fast, but called only in constructor */
-    const float ft2 = sqrt( 0.5f ) / 2; /* frequency for sigma2 */
-    const float ft3 = sqrt( 0.5f ) / 4; /* frequency for sigma3 */
-    for( int h = 0; h < bh; h++ )
-    {
-        for( int w = 0; w < outwidth; w++ )
-        {
+    const float ft2 = sqrt(0.5f) / 2; /* frequency for sigma2 */
+    const float ft3 = sqrt(0.5f) / 4; /* frequency for sigma3 */
+    for (int h = 0; h < bh; h++) {
+        for (int w = 0; w < outwidth; w++) {
             float sigmacur;
-            float fy = (bh - 2.0f * abs( h - bh / 2)) / bh; /* normalized to 1 */
+            float fy = (bh - 2.0f * abs(h - bh / 2)) / bh; /* normalized to 1 */
             float fx = (w * 1.0f) / outwidth;               /* normalized to 1 */
-            float f = sqrt( (fx * fx + fy * fy) * 0.5f );   /* normalized to 1 */
-            if( f < ft3 )
-            {   /* low frequencies */
+            float f = sqrt((fx * fx + fy * fy) * 0.5f);   /* normalized to 1 */
+            if (f < ft3) {   /* low frequencies */
                 sigmacur = sigma4 + (sigma3 - sigma4) * f / ft3;
-            }
-            else if( f < ft2 )
-            {   /* middle frequencies */
+            } else if (f < ft2) {   /* middle frequencies */
                 sigmacur = sigma3 + (sigma2 - sigma3) * (f - ft3) / (ft2 - ft3);
-            }
-            else
-            {   /* high frequencies */
+            } else {   /* high frequencies */
                 sigmacur = sigma + (sigma2 - sigma) * (1 - f) / (1 - ft2);
             }
             pattern2d[w] = sigmacur * sigmacur / norm;
@@ -204,7 +184,7 @@ const VSFrameRef *VS_CC FFT3DFilter::GetFrame(int n, int activation_reason, void
         if ((data->bt / 2 > n) || (data->bt - 1) / 2 > (data->vi->numFrames - 1 - n))
             btcur = 1; /* do 2D filter for first and last frames */
 
-        if (btcur <= 1 ) {
+        if (btcur <= 1) {
             vsapi->requestFrameFilter(n, data->node, frame_ctx);
         } else {
             int fromframe = n - data->bt / 2;
@@ -262,7 +242,7 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 
     if (bt == 0) /* Kalman */
-    { 
+    {
         outLast = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
         covar = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
         covarProcess = std::unique_ptr<fftwf_complex[], decltype(&fftw_free)>(fftwf_alloc_complex(outsize), fftwf_free);
@@ -271,7 +251,7 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     howmanyblocks = nox * noy;
 
     wsharpen = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
-    wdehalo  = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
+    wdehalo = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free);
 
     GetSharpenWindow(bw, bh, outwidth, outpitchelems, svr, scutoff, sharpen, wsharpen.get());
     GetDeHaloWindow(bw, bh, outwidth, outpitchelems, hr, svr, dehalo, wdehalo.get());
@@ -284,20 +264,19 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     ht2n = ht * ht / norm; /* halo threshold squared and normed - v1.9 */
 
     /* init Kalman */
-    if( bt == 0 ) /* Kalman */
+    if (bt == 0) /* Kalman */
     {
-        fill_complex( outLast.get(),      outsize, 0, 0 );
-        fill_complex( covar.get(),        outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
-        fill_complex( covarProcess.get(), outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D );
+        fill_complex(outLast.get(), outsize, 0, 0);
+        fill_complex(covar.get(), outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D);
+        fill_complex(covarProcess.get(), outsize, sigmaSquaredNoiseNormed2D, sigmaSquaredNoiseNormed2D);
     }
 
     pattern2d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free); /* noise pattern window array */
     pattern3d = std::unique_ptr<float[], decltype(&fftw_free)>(fftwf_alloc_real(bh * outpitchelems), fftwf_free); /* noise pattern window array */
 
     bool isPatternSet = false;
-    if( (sigma2 != sigma || sigma3 != sigma || sigma4 != sigma) && pfactor == 0 )
-    {   /* we have different sigmas, so create pattern from sigmas */
-        SigmasToPattern( sigma, sigma2, sigma3, sigma4, bh, outwidth, outpitchelems, norm, pattern2d.get());
+    if ((sigma2 != sigma || sigma3 != sigma || sigma4 != sigma) && pfactor == 0) {   /* we have different sigmas, so create pattern from sigmas */
+        SigmasToPattern(sigma, sigma2, sigma3, sigma4, bh, outwidth, outpitchelems, norm, pattern2d.get());
         isPatternSet = true;
         pfactor = 1;
     }
@@ -321,10 +300,9 @@ void FFT3DFilter::Wiener3D
     int               n,
     VSNodeRef *node,
     VSFrameRef *dst,
-    VSFrameContext   *frame_ctx,
-    const VSAPI      *vsapi
-)
-{
+    VSFrameContext *frame_ctx,
+    const VSAPI *vsapi
+) {
     int fromframe = n - btcur / 2;
     int outcenter = btcur / 2;
     const fftwf_complex *frames[btcur] = {};
@@ -339,21 +317,18 @@ void FFT3DFilter::Wiener3D
     // also clamp the index unlike the original so no reads happen beyond the array bounds...
     const fftwf_complex *outp[5] = { frames[std::max(0, outcenter - 2)], frames[std::max(0, outcenter - 1)], nullptr, frames[std::min(outcenter + 1, btcur - 1)], frames[std::min(outcenter + 2, btcur - 1)] };
 
-    if( degrid != 0 )
-    {
-        if( pfactor != 0 )
+    if (degrid != 0) {
+        if (pfactor != 0)
             ApplyPattern3D_degrid< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
         else
             ApplyWiener3D_degrid< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
-        Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
-    }
-    else
-    {
-        if( pfactor != 0 )
-            ApplyPattern3D< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta );
+        Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n);
+    } else {
+        if (pfactor != 0)
+            ApplyPattern3D< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, pattern3d.get(), beta);
         else
-            ApplyWiener3D< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta );
-        Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
+            ApplyWiener3D< btcur >(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outp[0], outp[1], outp[3], outp[4], outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta);
+        Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n);
     }
 
     for (int i = 0; i < btcur; i++)
@@ -363,95 +338,80 @@ void FFT3DFilter::Wiener3D
 VSFrameRef *FFT3DFilter::ApplyFilter
 (
     int               n,
-    VSFrameContext   *frame_ctx,
-    VSCore           *core,
-    const VSAPI      *vsapi
-)
-{
+    VSFrameContext *frame_ctx,
+    VSCore *core,
+    const VSAPI *vsapi
+) {
     const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
     VSFrameRef *dst = vsapi->copyFrame(src, core);
     vsapi->freeFrame(src);
 
     int btcur = bt; /* bt used for current frame */
 
-    if( (bt / 2 > n) || (bt - 1) / 2 > (vi->numFrames - 1 - n) )
-    {
+    if ((bt / 2 > n) || (bt - 1) / 2 > (vi->numFrames - 1 - n)) {
         btcur = 1; /* do 2D filter for first and last frames */
     }
 
 
-    if( btcur > 0 ) /* Wiener */
+    if (btcur > 0) /* Wiener */
     {
         sigmaSquaredNoiseNormed = btcur * sigma * sigma / norm; /* normalized variation=sigma^2 */
 
         /* get power spectral density (abs quadrat) for every block and apply filter */
 
-        if( btcur == 1 ) /* 2D */
+        if (btcur == 1) /* 2D */
         {
-            if( degrid != 0 )
-            {
-                if( pfactor != 0 )
-                {
+            if (degrid != 0) {
+                if (pfactor != 0) {
                     ApplyPattern2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta, degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)));
-                    Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
-                }
-                else
-                    ApplyWiener2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
+                    Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n);
+                } else
+                    ApplyWiener2D_degrid_C(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n);
+            } else {
+                if (pfactor != 0) {
+                    ApplyPattern2D(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta);
+                    Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n);
+                } else
+                    ApplyWiener2D(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n);
             }
-            else
-            {
-                if( pfactor != 0 )
-                {
-                    ApplyPattern2D(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, pfactor, pattern2d.get(), beta );
-                    Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
-                }
-                else
-                    ApplyWiener2D(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed, beta, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
-            }
-        }
-        else if( btcur == 2 ) /* 3D2 */
+        } else if (btcur == 2) /* 3D2 */
         {
-            Wiener3D< 2 >( n, node, dst, frame_ctx, vsapi );
-        }
-        else if( btcur == 3 ) /* 3D3 */
+            Wiener3D< 2 >(n, node, dst, frame_ctx, vsapi);
+        } else if (btcur == 3) /* 3D3 */
         {
-            Wiener3D< 3 >( n, node, dst, frame_ctx, vsapi );
-        }
-        else if( btcur == 4 ) /* 3D4 */
+            Wiener3D< 3 >(n, node, dst, frame_ctx, vsapi);
+        } else if (btcur == 4) /* 3D4 */
         {
-            Wiener3D< 4 >( n, node, dst, frame_ctx, vsapi );
-        }
-        else if( btcur == 5 ) /* 3D5 */
+            Wiener3D< 4 >(n, node, dst, frame_ctx, vsapi);
+        } else if (btcur == 5) /* 3D5 */
         {
-            Wiener3D< 5 >( n, node, dst, frame_ctx, vsapi );
+            Wiener3D< 5 >(n, node, dst, frame_ctx, vsapi);
         }
-    }
-    else if( bt == 0 ) /* Kalman filter */
+    } else if (bt == 0) /* Kalman filter */
     {
         /* get power spectral density (abs quadrat) for every block and apply filter */
-        if( n == 0 )
+        if (n == 0)
             return dst;
 
-        if( pfactor != 0 )
-            ApplyKalmanPattern(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio );
+        if (pfactor != 0)
+            ApplyKalmanPattern(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio);
         else
-            ApplyKalman(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio );
+            ApplyKalman(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio);
 
         /* copy outLast to outrez */
         memcpy(outLast.get(),
             reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)),
-                outsize * sizeof(fftwf_complex));
-        if( degrid != 0 )
-            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
+            outsize * sizeof(fftwf_complex));
+        if (degrid != 0)
+            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n);
         else
-            Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
-    }
-    else if( bt == -1 ) /* sharpen only */
+            Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n);
+    } else if (bt == -1) /* sharpen only */
     {
-        if( degrid != 0 )
-            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n );
+        if (degrid != 0)
+            Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n);
         else
-            Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n );
+            Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n);
     }
 
     return dst;
