@@ -245,9 +245,8 @@ static void CoverbufToFramePlane(const T *__restrict coverbuf, int coverwidth, i
  * use analysis windows */
 template<typename T>
 static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, ptrdiff_t src_pitch, float *__restrict wanxl, float *__restrict wanxr, float *__restrict wanyl, float *__restrict wanyr, int bw, int bh, int ow, int oh, int nox, int noy, int coverwidth, int planeBase) {
-    int ihx, ihy;
+    int ihy;
     const T *__restrict srcp = srcp0;
-    float ftmp;
     int xoffset = bh * bw - (bw - ow); /* skip frames */
     int yoffset = bw * nox * bh - bw * (bh - oh); /* vertical offset of same block (overlap) */
     src_pitch /= sizeof(T);
@@ -271,11 +270,11 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             }
             inp += bw - ow;
             srcp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx += 1) /* middle horizontal blocks */
+            for (int ihx = 1; ihx < nox; ihx += 1) /* middle horizontal blocks */
             {
                 for (int w = 0; w < ow; w++)   /* first part (overlapped) row of block */
                 {
-                    ftmp = float(wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
+                    float ftmp = float(wanyl[h] * (srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w] = ftmp * wanxr[w]; /* cur block */
                     inp[w + xoffset] = ftmp * wanxl[w]; /* overlapped Copy - next block */
                 }
@@ -309,11 +308,11 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             }
             inp += bw - ow;
             srcp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx += 1) /* middle horizontal blocks */
+            for (int ihx = 1; ihx < nox; ihx += 1) /* middle horizontal blocks */
             {
                 for (int w = 0; w < ow; w++)   /* first part (overlapped) row of block */
                 {
-                    ftmp = float((srcp[w] - planeBase));  /* Copy each byte from source to float array */
+                    float ftmp = float((srcp[w] - planeBase));  /* Copy each byte from source to float array */
                     inp[w] = ftmp * wanxr[w]; /* cur block */
                     inp[w + xoffset] = ftmp * wanxl[w]; /* overlapped Copy - next block */
                 }
@@ -345,23 +344,23 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
             for (int w = 0; w < ow; w++)   /* first half line of first block */
             {
-                ftmp = float(wanxl[w] * (srcp[w] - planeBase));
+                float ftmp = float(wanxl[w] * (srcp[w] - planeBase));
                 inp[w] = ftmp * wanyr[h];   /* Copy each byte from source to float array */
                 inp[w + yoffset] = ftmp * wanyl[h];   /* y overlapped */
             }
             for (int w = ow; w < bw - ow; w++)   /* first half line of first block */
             {
-                ftmp = float((srcp[w] - planeBase));
+                float ftmp = float((srcp[w] - planeBase));
                 inp[w] = ftmp * wanyr[h];   /* Copy each byte from source to float array */
                 inp[w + yoffset] = ftmp * wanyl[h];   /* y overlapped */
             }
             inp += bw - ow;
             srcp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle blocks */
             {
                 for (int w = 0; w < ow; w++)   /* half overlapped line of block */
                 {
-                    ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
+                    float ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w] = ftmp * wanxr[w] * wanyr[h];
                     inp[w + xoffset] = ftmp * wanxl[w] * wanyr[h];   /* x overlapped */
                     inp[w + yoffset] = ftmp * wanxr[w] * wanyl[h];
@@ -372,7 +371,7 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
                 srcp += ow;
                 for (int w = 0; w < bw - ow - ow; w++)   /* half non-overlapped line of block */
                 {
-                    ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
+                    float ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w] = ftmp * wanyr[h];
                     inp[w + yoffset] = ftmp * wanyl[h];
                 }
@@ -381,7 +380,7 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             }
             for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
-                ftmp = float(wanxr[w] * (srcp[w] - planeBase)); /* Copy each byte from source to float array */
+                float ftmp = float(wanxr[w] * (srcp[w] - planeBase)); /* Copy each byte from source to float array */
                 inp[w] = ftmp * wanyr[h];
                 inp[w + yoffset] = ftmp * wanyl[h];
             }
@@ -395,21 +394,21 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh)*bw + h * bw + yoffset;
             for (int w = 0; w < ow; w++)   /* first half line of first block */
             {
-                ftmp = float(wanxl[w] * (srcp[w] - planeBase));
+                float ftmp = float(wanxl[w] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
             for (int w = ow; w < bw - ow; w++)   /* first half line of first block */
             {
-                ftmp = float((srcp[w] - planeBase));
+                float ftmp = float((srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
             inp += bw - ow;
             srcp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle blocks */
             {
                 for (int w = 0; w < ow; w++)   /* half overlapped line of block */
                 {
-                    ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
+                    float ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w] = ftmp * wanxr[w];
                     inp[w + xoffset] = ftmp * wanxl[w];   /* x overlapped */
                 }
@@ -418,7 +417,7 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
                 srcp += ow;
                 for (int w = 0; w < bw - ow - ow; w++)   /* half non-overlapped line of block */
                 {
-                    ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
+                    float ftmp = float((srcp[w] - planeBase));   /* Copy each byte from source to float array */
                     inp[w] = ftmp;
                 }
                 inp += bw - ow - ow;
@@ -426,7 +425,7 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             }
             for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
-                ftmp = float(wanxr[w] * (srcp[w] - planeBase)); /* Copy each byte from source to float array */
+                float ftmp = float(wanxr[w] * (srcp[w] - planeBase)); /* Copy each byte from source to float array */
                 inp[w] = ftmp;
             }
             inp += ow;
@@ -443,17 +442,17 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
             for (int w = 0; w < ow; w++)   /* first half line of first block */
             {
-                ftmp = float(wanxl[w] * wanyr[h] * (srcp[w] - planeBase));
+                float ftmp = float(wanxl[w] * wanyr[h] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
             for (int w = ow; w < bw - ow; w++)   /* first half line of first block */
             {
-                ftmp = float(wanyr[h] * (srcp[w] - planeBase));
+                float ftmp = float(wanyr[h] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
             inp += bw - ow;
             srcp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle blocks */
             {
                 for (int w = 0; w < ow; w++)   /* half line of block */
                 {
@@ -473,7 +472,7 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
             }
             for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
-                ftmp = float(wanxr[w] * wanyr[h] * (srcp[w] - planeBase));
+                float ftmp = float(wanxr[w] * wanyr[h] * (srcp[w] - planeBase));
                 inp[w] = ftmp;   /* Copy each byte from source to float array */
             }
             inp += ow;
@@ -488,8 +487,7 @@ static void InitOverlapPlane(float *__restrict inp0, const T *__restrict srcp0, 
 
 template<typename T>
 static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__restrict dstp0, ptrdiff_t dst_pitch, float *__restrict wsynxl, float *__restrict wsynxr, float *__restrict wsynyr, float *__restrict wsynyl, int bw, int bh, int ow, int oh, int nox, int noy, int coverwidth, int planeBase, int maxval) {
-    int w, h;
-    int ihx, ihy;
+    int ihy;
     T *__restrict dstp = dstp0;
     const float *__restrict inp = inp0;
     int xoffset = bh * bw - (bw - ow);
@@ -498,9 +496,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
 
     ihy = 0; /* first top big non-overlapped) part */
     {
-        for (h = 0; h < bh - oh; h++) {
+        for (int h = 0; h < bh - oh; h++) {
             inp = inp0 + h * bw;
-            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            for (int w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase)); /* Copy each byte from float array to dest with windows */
@@ -509,9 +507,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             inp += bw - ow;
             dstp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle horizontal half-blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle horizontal half-blocks */
             {
-                for (w = 0; w < ow; w++)   /* half line of block */
+                for (int w = 0; w < ow; w++)   /* half line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));  /* overlapped Copy */
@@ -520,7 +518,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 }
                 inp += xoffset + ow;
                 dstp += ow;
-                for (w = 0; w < bw - ow - ow; w++)   /* first half line of first block */
+                for (int w = 0; w < bw - ow - ow; w++)   /* first half line of first block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));   /* Copy each byte from float array to dest with windows */
@@ -530,7 +528,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 inp += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
-            for (w = 0; w < ow; w++)   /* last half line of last block */
+            for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
@@ -546,14 +544,14 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
 
     for (ihy = 1; ihy < noy; ihy += 1) /* middle vertical */
     {
-        for (h = 0; h < oh; h++) /* top overlapped part */
+        for (int h = 0; h < oh; h++) /* top overlapped part */
         {
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
 
             float wsynyrh = wsynyr[h] * norm; /* remove from cycle for speed */
             float wsynylh = wsynyl[h] * norm;
 
-            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            for (int w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));   /* y overlapped */
@@ -562,9 +560,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             inp += bw - ow;
             dstp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle blocks */
             {
-                for (w = 0; w < ow; w++)   /* half overlapped line of block */
+                for (int w = 0; w < ow; w++)   /* half overlapped line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * wsynyrh
@@ -575,7 +573,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 }
                 inp += xoffset + ow;
                 dstp += ow;
-                for (w = 0; w < bw - ow - ow; w++)   /* double minus - half non-overlapped line of block */
+                for (int w = 0; w < bw - ow - ow; w++)   /* double minus - half non-overlapped line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));
@@ -585,7 +583,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 inp += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
-            for (w = 0; w < ow; w++)   /* last half line of last block */
+            for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynyrh + inp[w + yoffset] * wsynylh)) + planeBase));
@@ -598,9 +596,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             dstp += (dst_pitch - coverwidth);  /* Add the pitch of one line (in bytes) to the source image. */
         }
         /* middle  vertical non-ovelapped part */
-        for (h = 0; h < (bh - oh - oh); h++) {
+        for (int h = 0; h < (bh - oh - oh); h++) {
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh)*bw + h * bw + yoffset;
-            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            for (int w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
@@ -609,9 +607,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             inp += bw - ow;
             dstp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle blocks */
             {
-                for (w = 0; w < ow; w++)   /* half overlapped line of block */
+                for (int w = 0; w < ow; w++)   /* half overlapped line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));   /* x overlapped */
@@ -620,7 +618,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 }
                 inp += xoffset + ow;
                 dstp += ow;
-                for (w = 0; w < bw - ow - ow; w++)   /* half non-overlapped line of block */
+                for (int w = 0; w < bw - ow - ow; w++)   /* half non-overlapped line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
@@ -630,7 +628,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 inp += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
-            for (w = 0; w < ow; w++)   /* last half line of last block */
+            for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
@@ -646,9 +644,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
 
     ihy = noy; /* last bottom part */
     {
-        for (h = 0; h < oh; h++) {
+        for (int h = 0; h < oh; h++) {
             inp = inp0 + (ihy - 1) * (yoffset + (bh - oh) * bw) + (bh - oh) * bw + h * bw;
-            for (w = 0; w < bw - ow; w++)   /* first half line of first block */
+            for (int w = 0; w < bw - ow; w++)   /* first half line of first block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
@@ -657,9 +655,9 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
             }
             inp += bw - ow;
             dstp += bw - ow;
-            for (ihx = 1; ihx < nox; ihx++) /* middle blocks */
+            for (int ihx = 1; ihx < nox; ihx++) /* middle blocks */
             {
-                for (w = 0; w < ow; w++)   /* half line of block */
+                for (int w = 0; w < ow; w++)   /* half line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)((inp[w] * wsynxr[w] + inp[w + xoffset] * wsynxl[w]) * norm) + planeBase));  /* overlapped Copy */
@@ -668,7 +666,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 }
                 inp += xoffset + ow;
                 dstp += ow;
-                for (w = 0; w < bw - ow - ow; w++)   /* half line of block */
+                for (int w = 0; w < bw - ow - ow; w++)   /* half line of block */
                 {
                     if constexpr (std::is_integral_v<T>)
                         dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
@@ -678,7 +676,7 @@ static void DecodeOverlapPlane(const float *__restrict inp0, float norm, T *__re
                 inp += bw - ow - ow;
                 dstp += bw - ow - ow;
             }
-            for (w = 0; w < ow; w++)   /* last half line of last block */
+            for (int w = 0; w < ow; w++)   /* last half line of last block */
             {
                 if constexpr (std::is_integral_v<T>)
                     dstp[w] = std::min(maxval, std::max(0, (int)(inp[w] * norm) + planeBase));
