@@ -30,7 +30,7 @@
  //
 void ApplyWiener2D_C
 (
-    fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
+    fftwf_complex *__restrict outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
     float sharpen_, float sigmaSquaredSharpenMin,
     float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo_, const float *wdehalo, float ht2n
@@ -117,7 +117,7 @@ void ApplyWiener2D_C
 }
 //-------------------------------------------------------------------------------------------
 //
-void ApplyPattern2D_C(fftwf_complex *outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float pfactor, const float *pattern2d0, float beta) {
+void ApplyPattern2D_C(fftwf_complex *__restrict outcur, int outwidth, int outpitchelems, int bh, int howmanyblocks, float pfactor, const float *pattern2d0, float beta) {
     int h, w, block;
     float psd;
     float patternfactor;
@@ -147,7 +147,7 @@ void ApplyPattern2D_C(fftwf_complex *outcur, int outwidth, int outpitchelems, in
 //
 void ApplyWiener3D2_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta
 ) {
@@ -191,7 +191,7 @@ void ApplyWiener3D2_C
 //
 void ApplyPattern3D2_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta
 ) {
@@ -237,7 +237,7 @@ void ApplyPattern3D2_C
 //
 void ApplyWiener3D3_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta
 ) {
@@ -297,7 +297,7 @@ void ApplyWiener3D3_C
 //
 void ApplyPattern3D3_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     const float *pattern3d, float beta
 ) {
@@ -359,7 +359,7 @@ void ApplyPattern3D3_C
 //
 void ApplyWiener3D4_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta
 ) {
@@ -425,7 +425,7 @@ void ApplyWiener3D4_C
 //
 void ApplyPattern3D4_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta
 ) {
@@ -494,8 +494,8 @@ void ApplyPattern3D4_C
 //
 void ApplyKalmanPattern_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outLast,
-    fftwf_complex *covar, fftwf_complex *covarProcess,
+    const fftwf_complex *outcur, fftwf_complex *__restrict outLast,
+    fftwf_complex *__restrict covar, fftwf_complex *__restrict covarProcess,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     const float *covarNoiseNormed, float kratio2
 ) {
@@ -554,8 +554,8 @@ void ApplyKalmanPattern_C
 //
 void ApplyKalman_C
 (
-    const fftwf_complex *outcur, fftwf_complex *outLast, fftwf_complex *covar,
-    fftwf_complex *covarProcess, int outwidth, int outpitchelems, int bh,
+    const fftwf_complex *outcur, fftwf_complex *__restrict outLast, fftwf_complex *__restrict covar,
+    fftwf_complex *__restrict covarProcess, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float covarNoiseNormed, float kratio2
 ) {
     // return result in outLast
@@ -614,7 +614,7 @@ void ApplyKalman_C
 //
 void Sharpen_C
 (
-    fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
+    fftwf_complex *__restrict outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sharpen_, float sigmaSquaredSharpenMin,
     float sigmaSquaredSharpenMax, const float *wsharpen, float dehalo_, const float *wdehalo, float ht2n
 ) {
@@ -687,7 +687,7 @@ void Sharpen_C
 //
 void Sharpen_degrid_C
 (
-    fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
+    fftwf_complex *__restrict outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sharpen_, float sigmaSquaredSharpenMin,
     float sigmaSquaredSharpenMax, const float *wsharpen,
     float degrid, const fftwf_complex *gridsample, float dehalo_, const float *wdehalo, float ht2n
@@ -791,7 +791,7 @@ void Sharpen_degrid_C
 //-----------------------------------------------------------------------------------------
 void ApplyWiener2D_degrid_C
 (
-    fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
+    fftwf_complex *__restrict outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
     float sharpen_, float sigmaSquaredSharpenMin,
     float sigmaSquaredSharpenMax, const float *wsharpen,
@@ -927,7 +927,7 @@ void ApplyWiener2D_degrid_C
 //
 void ApplyWiener3D2_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -977,7 +977,7 @@ void ApplyWiener3D2_degrid_C
 //
 void ApplyWiener3D3_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1043,7 +1043,7 @@ void ApplyWiener3D3_degrid_C
 //
 void ApplyWiener3D4_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1117,7 +1117,7 @@ void ApplyWiener3D4_degrid_C
 //
 void ApplyPattern2D_degrid_C
 (
-    fftwf_complex *outcur, int outwidth, int outpitchelems, int bh,
+    fftwf_complex *__restrict outcur, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float pfactor, const float *pattern2d0, float beta,
     float degrid, const fftwf_complex *gridsample
 ) {
@@ -1159,7 +1159,7 @@ void ApplyPattern2D_degrid_C
 //
 void ApplyPattern3D2_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev,
     int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1211,7 +1211,7 @@ void ApplyPattern3D2_degrid_C
 //
 void ApplyPattern3D3_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev, const fftwf_complex *outnext,
     int outwidth, int outpitchelems, int bh, int howmanyblocks,
     const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1280,7 +1280,7 @@ void ApplyPattern3D3_degrid_C
 //
 void ApplyPattern3D4_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1356,7 +1356,7 @@ void ApplyPattern3D4_degrid_C
 //
 void ApplyPattern3D5_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1452,7 +1452,7 @@ void ApplyPattern3D5_degrid_C
 //
 void ApplyWiener3D5_degrid_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta,
     float degrid, const fftwf_complex *gridsample
@@ -1561,7 +1561,7 @@ void ApplyWiener3D5_degrid_C
 //
 void ApplyPattern3D5_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, const float *pattern3d, float beta
 ) {
@@ -1649,7 +1649,7 @@ void ApplyPattern3D5_C
 //
 void ApplyWiener3D5_C
 (
-    fftwf_complex *outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
+    fftwf_complex *__restrict outcur, const fftwf_complex *outprev2, const fftwf_complex *outprev,
     const fftwf_complex *outnext, const fftwf_complex *outnext2, int outwidth, int outpitchelems, int bh,
     int howmanyblocks, float sigmaSquaredNoiseNormed, float beta
 ) {
