@@ -56,17 +56,15 @@ class FFT3DFilterTransform {
 private:
     /* parameters */
     int plane;
-    int bw;       /* block width */
-    int bh;       /* block height */
-    int ow;       /* overlap width - v.0.9 */
-    int oh;       /* overlap height - v.0.9 */
+    int bw;
+    int bh;
+    int ow;
+    int oh;
     int px;
     int py;
     float pcutoff;
     float degrid;
     bool interlaced;
-
-    // set by constructor
     VSNodeRef *node;
 
     std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
@@ -110,13 +108,11 @@ public:
 class FFT3DFilterInvTransform {
 private:
     /* parameters */
-    int bw;       /* block width */
-    int bh;       /* block height */
-    int ow;       /* overlap width - v.0.9 */
-    int oh;       /* overlap height - v.0.9 */
+    int bw;
+    int bh;
+    int ow;
+    int oh;
     bool interlaced;
-
-    // set by constructor
     VSNodeRef *node;
 
     std::unique_ptr<uint8_t[]> coverbuf; /*  block buffer covering the frame without remainders (with sufficient width and heigth) */
@@ -131,7 +127,7 @@ private:
 
     int nox, noy;
     int outwidth;
-    int outpitchelems; /* v.1.7 */
+    int outpitchelems;
 
     float norm; /* normalization factor */
 
@@ -159,12 +155,10 @@ class FFT3DFilterPShow {
 private:
     /* parameters */
     int plane;
-    int bw;       /* block width */
-    int bh;       /* block height */
-    int ow;       /* overlap width - v.0.9 */
-    int oh;       /* overlap height - v.0.9 */
-
-    // set by constructor
+    int bw;
+    int bh;
+    int ow;
+    int oh;
     VSNodeRef *node;
 
     const VSVideoInfo *vi;
@@ -212,7 +206,7 @@ private:
     int nox, noy;
     int outwidth;
     ptrdiff_t outpitch;
-    int outpitchelems; /* v.1.7 */
+    int outpitchelems;
 
     int outsize;
     int howmanyblocks;
