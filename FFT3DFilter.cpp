@@ -335,7 +335,7 @@ void FFT3DFilter::Wiener3D
         vsapi->freeFrame(frefs[i]);
 }
 
-VSFrameRef *FFT3DFilter::ApplyFilter
+const VSFrameRef *FFT3DFilter::ApplyFilter
 (
     int               n,
     VSFrameContext *frame_ctx,
@@ -343,8 +343,6 @@ VSFrameRef *FFT3DFilter::ApplyFilter
     const VSAPI *vsapi
 ) {
     const VSFrameRef *src = vsapi->getFrameFilter(n, node, frame_ctx);
-    VSFrameRef *dst = vsapi->copyFrame(src, core);
-    vsapi->freeFrame(src);
 
     int btcur = bt; /* bt used for current frame */
 
@@ -352,6 +350,10 @@ VSFrameRef *FFT3DFilter::ApplyFilter
         btcur = 1; /* do 2D filter for first and last frames */
     }
 
+    if (btcur == 0 && n == 0)
+        return src;
+
+    VSFrameRef *dst = (btcur == 0) ? vsapi->newVideoFrame(vsapi->getVideoFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), src, core) : vsapi->copyFrame(src, core);
 
     if (btcur > 0) /* Wiener */
     {
@@ -393,14 +395,17 @@ VSFrameRef *FFT3DFilter::ApplyFilter
         if (n == 0)
             return dst;
 
+        // Technically this function is broken due to non-linear access and it's always been that way
+        // However the history of mostly adjacent frames will probably be no worse than the original
+
         if (pfactor != 0)
-            ApplyKalmanPattern(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio);
+            ApplyKalmanPattern(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(src, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, pattern2d.get(), kratio * kratio);
         else
-            ApplyKalman(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio);
+            ApplyKalman(reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(src, 0)), outLast.get(), covar.get(), covarProcess.get(), outwidth, outpitchelems, bh, howmanyblocks, sigmaSquaredNoiseNormed2D, kratio * kratio);
 
         /* copy outLast to outrez */
-        memcpy(outLast.get(),
-            reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)),
+        memcpy(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)),
+            outLast.get(),
             outsize * sizeof(fftwf_complex));
         if (degrid != 0)
             Sharpen_degrid(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), degrid, reinterpret_cast<const fftwf_complex *>(vsapi->getReadPtr(gridsample, 0)), dehalo, wdehalo.get(), ht2n);
@@ -413,6 +418,8 @@ VSFrameRef *FFT3DFilter::ApplyFilter
         else
             Sharpen(reinterpret_cast<fftwf_complex *>(vsapi->getWritePtr(dst, 0)), outwidth, outpitchelems, bh, howmanyblocks, sharpen, sigmaSquaredSharpenMinNormed, sigmaSquaredSharpenMaxNormed, wsharpen.get(), dehalo, wdehalo.get(), ht2n);
     }
+
+    vsapi->freeFrame(src);
 
     return dst;
 }

@@ -242,7 +242,7 @@ private:
     void Wiener3D(int n, VSNodeRef *node, VSFrameRef *dst, VSFrameContext *frame_ctx, const VSAPI *vsapi);
 
 public:
-    VSFrameRef *ApplyFilter(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
+    const VSFrameRef *ApplyFilter(int n, VSFrameContext *frame_ctx, VSCore *core, const VSAPI *vsapi);
 
     /* Constructor */
     FFT3DFilter
