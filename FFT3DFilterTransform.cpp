@@ -699,10 +699,10 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
 
     const VSVideoInfo *srcvi = vsapi->getVideoInfo(node);
 
-    planeBase = (plane > 0 && srcvi->format.sampleType == stInteger && srcvi->format.colorFamily == cfYUV) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
+    planeBase = (plane > 0 && srcvi->format->sampleType == stInteger && srcvi->format->colorFamily == cfYUV) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
 
-    nox = ((srcvi->width >> (plane ? srcvi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
-    noy = ((srcvi->height >> (plane ? srcvi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
+    nox = ((srcvi->width >> (plane ? srcvi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
+    noy = ((srcvi->height >> (plane ? srcvi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
     wanxl = std::unique_ptr<float[]>(new float[ow]);
     wanxr = std::unique_ptr<float[]>(new float[ow]);
@@ -719,7 +719,7 @@ FFT3DFilterTransform::FFT3DFilterTransform(bool pshow, VSNodeRef *node_, int pla
 
     coverwidth = nox * (bw - ow) + ow;
     coverheight = noy * (bh - oh) + oh;
-    coverpitch = ((coverwidth + 7) / 8) * 8 * srcvi->format.bytesPerSample;
+    coverpitch = ((coverwidth + 7) / 8) * 8 * srcvi->format->bytesPerSample;
     coverbuf = std::unique_ptr<uint8_t[]>(new uint8_t[coverheight * coverpitch]);
 
     int insize = bw * bh * nox * noy;
@@ -808,13 +808,13 @@ const VSFrameRef *VS_CC FFT3DFilterTransform::GetPShowFrame(int n, int activatio
 
 const VSFrameRef *FFT3DFilterTransform::GetGridSample(VSCore *core, const VSAPI *vsapi) {
     const VSVideoInfo *vi = vsapi->getVideoInfo(node);
-    int bytesPerSample = vi->format.bytesPerSample;
+    int bytesPerSample = vi->format->bytesPerSample;
 
     if (bytesPerSample == 1) {
         memset(coverbuf.get(), 255, coverheight * coverpitch);
         InitOverlapPlane(in.get(), reinterpret_cast<uint8_t *>(coverbuf.get()), coverpitch, wanxl.get(), wanxr.get(), wanyl.get(), wanyr.get(), bw, bh, ow, oh, nox, noy, coverwidth, 0);
     } else if (bytesPerSample == 2) {
-        int maxval = (1 << vi->format.bitsPerSample) - 1;
+        int maxval = (1 << vi->format->bitsPerSample) - 1;
         fft3d_memset(reinterpret_cast<uint16_t *>(coverbuf.get()), static_cast<uint16_t>(maxval), coverheight * coverpitch / 2);
         InitOverlapPlane(in.get(), reinterpret_cast<uint16_t *>(coverbuf.get()), coverpitch, wanxl.get(), wanxr.get(), wanyl.get(), wanyr.get(), bw, bh, ow, oh, nox, noy, coverwidth, 0);
     } else if (bytesPerSample == 4) {
@@ -958,10 +958,10 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     if (oh < 0)
         oh = bh / 3;
 
-    planeBase = (plane > 0 && srcvi->format.sampleType == stInteger && srcvi->format.colorFamily == cfYUV) ? (1 << (srcvi->format.bitsPerSample - 1)) : 0;
+    planeBase = (plane > 0 && srcvi->format->sampleType == stInteger && srcvi->format->colorFamily == cfYUV) ? (1 << (srcvi->format->bitsPerSample - 1)) : 0;
 
-    nox = ((srcvi->width >> (plane ? srcvi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
-    noy = ((srcvi->height >> (plane ? srcvi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
+    nox = ((srcvi->width >> (plane ? srcvi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
+    noy = ((srcvi->height >> (plane ? srcvi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
     wsynxl = std::unique_ptr<float[]>(new float[ow]);
     wsynxr = std::unique_ptr<float[]>(new float[ow]);
@@ -978,7 +978,7 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
 
     coverwidth = nox * (bw - ow) + ow;
     coverheight = noy * (bh - oh) + oh;
-    coverpitch = ((coverwidth + 7) / 8) * 8 * srcvi->format.bytesPerSample;
+    coverpitch = ((coverwidth + 7) / 8) * 8 * srcvi->format->bytesPerSample;
     coverbuf = std::unique_ptr<uint8_t[]>(new uint8_t[coverheight * coverpitch]);
 
     int insize = bw * bh * nox * noy;
@@ -997,9 +997,9 @@ FFT3DFilterInvTransform::FFT3DFilterInvTransform(VSNodeRef *node_, const VSVideo
     int howmanyblocks = nox * noy;
 
     dstvi = *srcvi;
-    dstvi.width = (srcvi->width >> (plane ? srcvi->format.subSamplingW : 0));
-    dstvi.height = (srcvi->height >> (plane ? srcvi->format.subSamplingH : 0));
-    vsapi->queryVideoFormat(&dstvi.format, cfGray, srcvi->format.sampleType, srcvi->format.bitsPerSample, 0, 0, core);
+    dstvi.width = (srcvi->width >> (plane ? srcvi->format->subSamplingW : 0));
+    dstvi.height = (srcvi->height >> (plane ? srcvi->format->subSamplingH : 0));
+    vsapi->queryVideoFormat(&dstvi.format, cfGray, srcvi->format->sampleType, srcvi->format->bitsPerSample, 0, 0, core);
 
     const VSVideoInfo *inputvi = vsapi->getVideoInfo(node);
     VSFrameRef *src = vsapi->newVideoFrame(&inputvi->format, inputvi->width, inputvi->height, nullptr, core);
@@ -1023,13 +1023,13 @@ VSFrameRef *FFT3DFilterInvTransform::GetFrame(const VSFrameRef *src, VSCore *cor
 
     VSFrameRef *dst = vsapi->newVideoFrame(&dstvi.format, dstvi.width, dstvi.height, src, core);
 
-    if (dstvi.format.bytesPerSample == 1) {
+    if (dstvi.format->bytesPerSample == 1) {
         DecodeOverlapPlane(in.get(), norm, reinterpret_cast<uint8_t *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, 255);
         CoverbufToFramePlane(reinterpret_cast<uint8_t *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi);
-    } else if (dstvi.format.bytesPerSample == 2) {
-        DecodeOverlapPlane(in.get(), norm, reinterpret_cast<uint16_t *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, (1 << dstvi.format.bitsPerSample) - 1);
+    } else if (dstvi.format->bytesPerSample == 2) {
+        DecodeOverlapPlane(in.get(), norm, reinterpret_cast<uint16_t *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, (1 << dstvi.format->bitsPerSample) - 1);
         CoverbufToFramePlane(reinterpret_cast<uint16_t *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi);
-    } else if (dstvi.format.bytesPerSample == 4) {
+    } else if (dstvi.format->bytesPerSample == 4) {
         DecodeOverlapPlane(in.get(), norm, reinterpret_cast<float *>(coverbuf.get()), coverpitch, wsynxl.get(), wsynxr.get(), wsynyr.get(), wsynyl.get(), bw, bh, ow, oh, nox, noy, coverwidth, planeBase, 1);
         CoverbufToFramePlane(reinterpret_cast<float *>(coverbuf.get()), coverwidth, coverheight, coverpitch, dst, mirw, mirh, interlaced, vsapi);
     }
@@ -1090,13 +1090,13 @@ VSFrameRef *FFT3DFilterPShow::GetFrame(const VSFrameRef *src, VSCore *core, cons
 
     VSFrameRef *dst = vsapi->newVideoFrame2(&vi->format, vi->width, vi->height, srcs, planesrc, src, core);
 
-    int planeBase = (plane > 0 && vi->format.sampleType == stInteger && vi->format.colorFamily == cfYUV) ? (1 << (vi->format.bitsPerSample - 1)) : 0;
+    int planeBase = (plane > 0 && vi->format->sampleType == stInteger && vi->format->colorFamily == cfYUV) ? (1 << (vi->format->bitsPerSample - 1)) : 0;
 
-    if (vi->format.bytesPerSample == 1)
+    if (vi->format->bytesPerSample == 1)
         PutPatternOnly2<uint8_t>(vsapi->getReadPtr(src, plane), vsapi->getWritePtr(dst, plane), 128, vsapi->getStride(src, plane), vsapi->getFrameHeight(src, plane), bw, bh, ow, oh, pxf, pyf);
-    else if (vi->format.bytesPerSample == 2)
+    else if (vi->format->bytesPerSample == 2)
         PutPatternOnly2<uint16_t>(reinterpret_cast<const uint16_t *>(vsapi->getReadPtr(src, plane)), reinterpret_cast<uint16_t *>(vsapi->getWritePtr(dst, plane)), planeBase, vsapi->getStride(src, plane), vsapi->getFrameHeight(src, plane), bw, bh, ow, oh, pxf, pyf);
-    else if (vi->format.bytesPerSample == 4)
+    else if (vi->format->bytesPerSample == 4)
         PutPatternOnly2<float>(reinterpret_cast<const float *>(vsapi->getReadPtr(src, plane)), reinterpret_cast<float *>(vsapi->getWritePtr(dst, plane)), 0, vsapi->getStride(src, plane), vsapi->getFrameHeight(src, plane), bw, bh, ow, oh, pxf, pyf);
 
     return dst;

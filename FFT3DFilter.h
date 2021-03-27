@@ -22,7 +22,7 @@
 
 #include <memory>
 #include <fftw3.h>
-#include <VapourSynth4.h>
+#include <VapourSynth.h>
 
  /** declarations of filtering functions: **/
  /* C */

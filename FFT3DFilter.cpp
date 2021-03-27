@@ -228,8 +228,8 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
     if (ow < 0) ow = bw / 3; /* changed from bw/4 to bw/3 in v.1.2 */
     if (oh < 0) oh = bh / 3; /* changed from bh/4 to bh/3 in v.1.2 */
 
-    nox = ((vi->width >> (plane ? vi->format.subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
-    noy = ((vi->height >> (plane ? vi->format.subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
+    nox = ((vi->width >> (plane ? vi->format->subSamplingW : 0)) - ow + (bw - ow - 1)) / (bw - ow);
+    noy = ((vi->height >> (plane ? vi->format->subSamplingH : 0)) - oh + (bh - oh - 1)) / (bh - oh);
 
     /* padding by 1 block per side */
     nox += 2;
@@ -237,7 +237,7 @@ pattern3d(nullptr, nullptr), vi(_vi), node(_node) {
 
     outwidth = bw / 2 + 1;                  /* width (pitch) of complex fft block */
     outpitchelems = ((outwidth + 1) / 2) * 2;    /* must be even for SSE - v1.7 */
-    outpitch = outpitchelems * vi->format.bytesPerSample;
+    outpitch = outpitchelems * vi->format->bytesPerSample;
 
     outsize = outpitchelems * bh * nox * noy;   /* replace outwidth to outpitchelems here and below in v1.7 */
 
@@ -353,7 +353,7 @@ const VSFrameRef *FFT3DFilter::ApplyFilter
     if (btcur == 0 && n == 0)
         return src;
 
-    VSFrameRef *dst = (btcur == 0) ? vsapi->newVideoFrame(vsapi->getVideoFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), src, core) : vsapi->copyFrame(src, core);
+    VSFrameRef *dst = (btcur == 0) ? vsapi->newVideoFrame(vsapi->getFrameFormat(src), vsapi->getFrameWidth(src, 0), vsapi->getFrameHeight(src, 0), src, core) : vsapi->copyFrame(src, core);
 
     if (btcur > 0) /* Wiener */
     {

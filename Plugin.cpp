@@ -19,8 +19,8 @@
  *****************************************************************************/
 
 #include "FFT3DFilter.h"
-#include <VapourSynth4.h>
-#include <VSHelper4.h>
+#include <VapourSynth.h>
+#include <VSHelper.h>
 #include <string>
 #include <stdexcept>
 
